@@ -16,6 +16,7 @@
     "eslint": "^8.57.1"
   },
   "dependencies": {
+    "sharp": "^0.33.5",
     "source-map-support": "^0.5.21"
   }
 }

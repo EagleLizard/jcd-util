@@ -12,5 +12,6 @@ package-lock.json
 data
 build
 logs
+times.txt
 
-ezd_api_db_data*
+out/

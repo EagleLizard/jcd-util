@@ -17,3 +17,15 @@ export function checkDir(dirPath: string): boolean {
   }
   return stats.isDirectory();
 }
+
+export function mkdirIfNotExist(dirPath: string, opts: {
+  recursive?: boolean;
+}) {
+  let dirExists: boolean;
+  dirExists = checkDir(dirPath);
+  if(!dirExists) {
+    fs.mkdirSync(dirPath, {
+      recursive: opts.recursive,
+    });
+  }
+}
