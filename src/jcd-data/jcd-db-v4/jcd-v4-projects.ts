@@ -41,7 +41,7 @@
 //   // RENAISSANCE_FAIRE = 'RENAISSANCE_FAIRE',
 // }
 
-type JcdProjectDef = {
+export type JcdProjectDef = {
   project_key: string;
   active: boolean;
   route: string;
