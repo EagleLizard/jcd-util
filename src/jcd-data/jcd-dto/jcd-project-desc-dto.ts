@@ -12,7 +12,7 @@ import { Value } from '@sinclair/typebox/value';
   last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
  */
 
-const JcdProjectDescriptionDtoSchema = Type.Object({
+const JcdProjectDescDtoSchema = Type.Object({
   jcd_project_description_id: Type.Number(),
   jcd_project_id: Type.Number(),
   description_id: Type.Number(),
@@ -20,9 +20,9 @@ const JcdProjectDescriptionDtoSchema = Type.Object({
   last_modified: Type.Date(),
 });
 
-type JcdProjectDescriptionDtoType = Static<typeof JcdProjectDescriptionDtoSchema>;
+type JcdProjectDescDtoType = Static<typeof JcdProjectDescDtoSchema>;
 
-export class JcdProjectDescriptionDto implements JcdProjectDescriptionDtoType {
+export class JcdProjectDescDto implements JcdProjectDescDtoType {
   constructor(
     public jcd_project_description_id: number,
     public jcd_project_id: number,
@@ -31,9 +31,9 @@ export class JcdProjectDescriptionDto implements JcdProjectDescriptionDtoType {
     public last_modified: Date,
   ) {}
 
-  static deserialize(val: unknown): JcdProjectDescriptionDto {
-    let parsedProjDesc = Value.Parse(JcdProjectDescriptionDtoSchema, val);
-    let projDescDto = new JcdProjectDescriptionDto(
+  static deserialize(val: unknown): JcdProjectDescDto {
+    let parsedProjDesc = Value.Parse(JcdProjectDescDtoSchema, val);
+    let projDescDto = new JcdProjectDescDto(
       parsedProjDesc.jcd_project_description_id,
       parsedProjDesc.jcd_project_id,
       parsedProjDesc.description_id,

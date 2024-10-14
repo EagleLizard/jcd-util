@@ -4,17 +4,18 @@ import { PostgresClient } from '../../lib/postgres-client';
 import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { JcdProjectDef, JcdV4Projects } from './jcd-v4-projects';
 import { DescriptionDto } from '../jcd-dto/description-dto';
-import { JcdProjectDescriptionDto } from '../jcd-dto/jcd-project-description-dto';
+import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
 
 export async function jcdDbV4Main() {
 
-  // let projects = JcdV4Projects.slice(0, 2);
+  // let projects = JcdV4Projects;
   let projects = JcdV4Projects.slice(0, 2);
   console.log(projects.map(proj => proj.project_key));
   for(let i = 0; i < projects.length; ++i) {
     let currProject = projects[i];
     await upsertProjectDef(currProject);
   }
+  await PostgresClient.end();
 }
 
 async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
@@ -27,33 +28,41 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
 
-    let jcdProjDescDto = await insertJcdProjectDesc(pgClient, {
+    let jcdProjDescDto = await upsertJcdProjectDesc(pgClient, {
       jcd_project_id: jcdProjectDto.jcd_project_id,
       description_id: descDto.description_id,
     });
 
-    console.log(jcdProjDescDto);
-
     console.log(jcdProjectDto.jcd_project_id);
+    console.log(jcdProjDescDto.jcd_project_description_id);
+
+    let jcdProjectCredits = await upsertJcdProjectCredits(pgClient, {
+      jcdProjectDef,
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+    });
   });
 }
 
-async function insertJcdProjectDesc(client: PoolClient, opts: {
+async function upsertJcdProjectCredits(client: PoolClient, opts: {
+  jcdProjectDef: JcdProjectDef,
+  jcd_project_id: number,
+}) {
+  for(let i = 0; i < opts.jcdProjectDef.credits.length; ++i) {
+    let currCredit = opts.jcdProjectDef.credits[i];
+    console.log(currCredit);
+  }
+}
+
+async function upsertJcdProjectDesc(client: PoolClient, opts: {
   jcd_project_id: number,
   description_id: number,
-}): Promise<JcdProjectDescriptionDto> {
-  let selectQueryStr = `
-    SELECT jpd.* from jcd_project_description jpd
-      INNER  JOIN jcd_project jp ON jpd.jcd_project_id = $1
-      INNER JOIN description d ON jpd.description_id = $2
-    ORDER BY jpd.last_modified DESC
-  `;
-  let res = await client.query(selectQueryStr, [
-    opts.jcd_project_id,
-    opts.description_id,
-  ]);
-  if(res.rows.length > 0) {
-    return JcdProjectDescriptionDto.deserialize(res.rows[0]);
+}): Promise<JcdProjectDescDto> {
+  let jcdProjDescDto = await getJcdProjectDesc(client, {
+    jcd_project_id: opts.jcd_project_id,
+    description_id: opts.description_id,
+  });
+  if(jcdProjDescDto !== undefined) {
+    return jcdProjDescDto;
   }
   let colNames = [
     'jcd_project_id',
@@ -65,11 +74,32 @@ async function insertJcdProjectDesc(client: PoolClient, opts: {
       values(${colNums.join(', ')})
     returning *
   `;
-  res = await client.query(insertQueryStr, [
+  let res = await client.query(insertQueryStr, [
     opts.jcd_project_id,
     opts.description_id,
   ]);
-  let jcdProjDescDto = JcdProjectDescriptionDto.deserialize(res.rows[0]);
+  jcdProjDescDto = JcdProjectDescDto.deserialize(res.rows[0]);
+  return jcdProjDescDto;
+}
+
+async function getJcdProjectDesc(client: PoolClient, opts: {
+  jcd_project_id: number,
+  description_id: number,
+}): Promise<JcdProjectDescDto | undefined> {
+  let queryStr = `
+    SELECT jpd.* from jcd_project_description jpd
+      INNER  JOIN jcd_project jp ON jpd.jcd_project_id = $1
+      INNER JOIN description d ON jpd.description_id = $2
+    ORDER BY jpd.last_modified DESC
+  `;
+  let res = await client.query(queryStr, [
+    opts.jcd_project_id,
+    opts.description_id,
+  ]);
+  if(res.rows.length < 1) {
+    return;
+  }
+  let jcdProjDescDto = JcdProjectDescDto.deserialize(res.rows[0]);
   return jcdProjDescDto;
 }
 
@@ -81,7 +111,6 @@ async function upsertProjectDesc(client: PoolClient, opts: {
     text: opts.text,
     jcd_project_id: opts.jcd_project_id,
   });
-  console.log({ descDto });
   if(descDto !== undefined) {
     return descDto;
   }
@@ -161,8 +190,7 @@ async function insertProject(client: PoolClient, jcdProjectDef: JcdProjectDef): 
 }
 
 async function getProjectByKey(client: PoolClient, projectKey: string) {
-  console.log(projectKey);
-  let res = await PostgresClient.query(`
+  let res = await client.query(`
     SELECT * FROM jcd_project jp
       WHERE jp.project_key = $1
   `, [ projectKey ]);

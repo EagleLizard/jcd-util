@@ -36,4 +36,8 @@ export  class PostgresClient {
       txnClient.release();
     }
   }
+
+  static end() {
+    return pgPool.end();
+  }
 }
