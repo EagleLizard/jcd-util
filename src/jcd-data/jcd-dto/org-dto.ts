@@ -19,12 +19,17 @@ const OrgDtoSchema = Type.Object({
 
 export type OrgDtoType = Static<typeof OrgDtoSchema>;
 
-export const orgDto = {
+export const OrgDto = {
   deserialize,
+  check,
 } as const;
 
 function deserialize(val: unknown): OrgDtoType {
   return Value.Parse(OrgDtoSchema, val);
+}
+
+function check(val: unknown): val is OrgDtoType {
+  return Value.Check(OrgDtoSchema, val);
 }
 
 // export class OrgDto implements OrgDtoType {

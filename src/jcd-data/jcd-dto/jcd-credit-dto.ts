@@ -5,9 +5,8 @@ import { Value } from '@sinclair/typebox/value';
 /*
   jcd_credit_id SERIAL PRIMARY KEY,
 
+  text TEXT NOT NULL,
   jcd_project_id INT references jcd_project(jcd_project_id) NOT NULL,
-  person_contrib_id INT references person(person_id),
-  org_contrib_id INT references org(org_id),
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -15,16 +14,15 @@ import { Value } from '@sinclair/typebox/value';
 
 const JcdCreditDtoSchema = Type.Object({
   jcd_credit_id: Type.Number(),
+  text: Type.String(),
   jcd_project_id: Type.Number(),
-  person_contrib_id: Type.Number(),
-  org_contrib_id: Type.Number(),
   created_at: Type.Date(),
   last_modified: Type.Date(),
 });
 
 export type JcdCreditDtoType = Static<typeof JcdCreditDtoSchema>;
 
-export const jcdCreditDto = {
+export const JcdCreditDto = {
   deserialize,
 } as const;
 

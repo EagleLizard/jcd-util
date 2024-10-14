@@ -48,18 +48,18 @@ export type JcdProjectDef = {
   title: string;
   venue: VenueDef,
   project_date: Date; // yyyy-mm-dd
-  producer: ContribDef[];
+  producer: JcdContribDef[];
   description: string[];
-  credits: CreditDef[];
-  prod_credits: CreditDef[];
+  credits: JcdCreditDef[];
+  prod_credits: JcdCreditDef[];
   press: PressDef[];
 };
 type VenueDef = string;
-type ContribDefKind = 'p' | 'o';
-type ContribDef = [ ContribDefKind, string ];
-type CreditDef = {
+export type JcdContribDefKind = 'p' | 'o';
+export type JcdContribDef = [ JcdContribDefKind, string ];
+export type JcdCreditDef = {
   label: string;
-  contribs: ContribDef[];
+  contribs: JcdContribDef[];
 };
 // type CreditDef = [ label: string, contribs: ContribDef[] ];
 type PressDef = {
@@ -1735,7 +1735,6 @@ const JcdV4Projects: JcdProjectDef[] = [
   GO_HOME_COME_BACK,
   THE_DIARY_OF_ANNE_FRANK,
   BALTHAZAR,
-  THE_DIARY_OF_ANNE_FRANK,
   THE_TALES_OF_HOFFMANN,
   LARAMIE_PROJECT,
   MY_BROTHER_WAS_A_VAMPIRE,

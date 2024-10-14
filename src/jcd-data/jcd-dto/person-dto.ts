@@ -11,12 +11,17 @@ const PersonDtoSchema = Type.Object({
 
 export type PersonDtoType = Static<typeof PersonDtoSchema>;
 
-export const personDto = {
+export const PersonDto = {
   deserialize,
+  check,
 } as const;
 
 function deserialize(val: unknown): PersonDtoType {
   return Value.Parse(PersonDtoSchema, val);
+}
+
+function check(val: unknown): val is PersonDtoType {
+  return Value.Check(PersonDtoSchema, val);
 }
 
 // export class PersonDto implements PersonDtoType {
