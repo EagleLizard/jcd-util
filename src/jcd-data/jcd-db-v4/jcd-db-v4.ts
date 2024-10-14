@@ -8,6 +8,7 @@ import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
 import { JcdCreditDto, JcdCreditDtoType } from '../jcd-dto/jcd-credit-dto';
 import { PersonDtoType, PersonDto } from '../jcd-dto/person-dto';
 import { OrgDtoType, OrgDto } from '../jcd-dto/org-dto';
+import { JcdCreditContribDto, JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
 
 export async function jcdDbV4Main() {
 
@@ -43,7 +44,7 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       jcdProjectDef,
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
-    console.log(jcdProjectCredits);
+    // console.log(jcdProjectCredits);
   });
 }
 
@@ -66,11 +67,95 @@ async function upsertJcdCredits(client: PoolClient, opts: {
         contribDef: currContrib,
       });
       contribDtos.push(currContribDto);
+      let jcdCreditContribDto = await upsertJcdCreditContrib(client, {
+        jcdCreditDto: currCreditDto,
+        jcdContribDto: currContribDto,
+      });
     }
-    console.log(currCreditDto);
-    console.log(contribDtos);
   }
   return jcdCredits;
+}
+
+async function upsertJcdCreditContrib(client: PoolClient, opts: {
+  jcdCreditDto: JcdCreditDtoType;
+  jcdContribDto: PersonDtoType | OrgDtoType;
+}): Promise<JcdCreditContribDtoType> {
+  console.log(opts.jcdCreditDto);
+  console.log(opts.jcdContribDto);
+  let jcdCreditContribDto = await getJcdCreditContrib(client, {
+    jcd_credit_id: opts.jcdCreditDto.jcd_project_id,
+    jcdContribDto: opts.jcdContribDto,
+  });
+  console.log('jcdCreditContribDto:');
+  console.log(jcdCreditContribDto);
+}
+
+async function getJcdCreditContrib(client: PoolClient, opts: {
+  jcd_credit_id: number;
+  jcdContribDto: PersonDtoType | OrgDtoType
+}): Promise<JcdCreditContribDtoType | undefined> {
+  let jcdCreditContribDto: JcdCreditContribDtoType | undefined;
+  if(PersonDto.check(opts.jcdContribDto)) {
+    jcdCreditContribDto = await getJcdCreditPersonContrib(client, {
+      jcd_credit_id: opts.jcd_credit_id,
+      jcdContribDto: opts.jcdContribDto,
+    });
+  } else if (OrgDto.check(opts.jcdContribDto)) {
+    jcdCreditContribDto = await getJcdCreditOrgContrib(client, {
+      jcd_credit_id: opts.jcd_credit_id,
+      jcdContribDto: opts.jcdContribDto,
+    });
+  } else {
+    console.error({ jcdCreditContribDto });
+    throw new Error('Invalid jcd_credit_contrib DTO');
+  }
+  return jcdCreditContribDto;
+}
+
+async function getJcdCreditPersonContrib(client: PoolClient, opts: {
+  jcd_credit_id: number;
+  jcdContribDto: PersonDtoType;
+}): Promise<JcdCreditContribDtoType | undefined> {
+  let queryStr = `
+    SELECT jcc.* FROM jcd_credit_contrib jcc
+      INNER JOIN jcd_credit jc ON jc.jcd_credit_id = jcc.jcd_credit_id
+      INNER JOIN person p ON p.person_id = jcc.person_id
+    WHERE jc.jcd_credit_id = $1
+      AND p.person_id = $2
+    ORDER BY jcc.last_modified DESC
+  `;
+  let res = await client.query(queryStr, [
+    opts.jcd_credit_id,
+    opts.jcdContribDto.person_id,
+  ]);
+  if(res.rows.length < 1) {
+    return;
+  }
+  let jcdCreditContribDto = JcdCreditContribDto.deserialize(res.rows[0]);
+  return jcdCreditContribDto;
+}
+
+async function getJcdCreditOrgContrib(client: PoolClient, opts: {
+  jcd_credit_id: number;
+  jcdContribDto: OrgDtoType;
+}): Promise<JcdCreditContribDtoType | undefined> {
+  let queryStr = `
+    SELECT jcc.* from jcd_credit_contrib jcc
+      INNER JOIN jcd_credit jc ON jc.jcd_credit_id = jcc.jcd_credit_id
+      INNER JOIN org o ON o.org_id = jcc.org_id
+    WHERE jc.jcd_credit_id = $1
+      AND o.org_id = $2
+    ORDER BY jcc.last_modified DESC
+  `;
+  let res = await client.query(queryStr, [
+    opts.jcd_credit_id,
+    opts.jcdContribDto.org_id,
+  ]);
+  if(res.rows.length < 1) {
+    return;
+  }
+  let jcdCreditContribDto = JcdCreditContribDto.deserialize(res.rows[0]);
+  return jcdCreditContribDto;
 }
 
 async function upsertJcdCredit(client: PoolClient, opts: {
