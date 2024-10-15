@@ -83,8 +83,29 @@ async function upsertJcdProdCredits(client: PoolClient, opts: {
       });
       jcdProdCreditContribDtos.push(jcdProdCreditContribDto);
     }
+    assertJcdProdCreditUpsert(contribDtos, jcdProdCreditContribDtos, currCreditDto);
   }
   return jcdProdCredits;
+}
+
+function assertJcdProdCreditUpsert(
+  contribDtos: (PersonDtoType | OrgDtoType)[],
+  jcdProdCreditContribDtos: JcdProdCreditContribDtoType[],
+  jcdProdCreditDto: JcdProdCreditDtoType,
+) {
+  assert(contribDtos.length === jcdProdCreditContribDtos.length);
+  contribDtos.forEach(contrib => {
+    let foundProdCreditContrib = jcdProdCreditContribDtos.find(prodCreditContrib => {
+      if(PersonDto.check(contrib)) {
+        return prodCreditContrib.person_id === contrib.person_id;
+      }
+      if(OrgDto.check(contrib)) {
+        return prodCreditContrib.org_id === contrib.org_id;
+      }
+      return false;
+    });
+    assert(foundProdCreditContrib !== undefined, `${jcdProdCreditDto.label}: ${contrib.name}`);
+  });
 }
 
 async function upsertJcdCredits(client: PoolClient, opts: {
@@ -113,12 +134,7 @@ async function upsertJcdCredits(client: PoolClient, opts: {
       });
       jcdCreditContribDtos.push(jcdCreditContribDto);
     }
-    /*
-      Assert new relationships
-     */
-    jcdCredits.forEach(jcdCredit => {
-      assertJcdCreditUpsert(jcdCredit, jcdCreditContribDtos, contribDtos);
-    });
+    assertJcdCreditUpsert(currCreditDto, jcdCreditContribDtos, contribDtos);
   }
   return jcdCredits;
 }
@@ -128,22 +144,19 @@ function assertJcdCreditUpsert(
   jcdCreditContribs: JcdCreditContribDtoType[],
   contribDtos: (PersonDtoType | OrgDtoType)[],
 ) {
-  let foundCreditContrib = jcdCreditContribs.find(jcdCreditContrib => {
-    return jcdCreditContrib.jcd_credit_id = jcdCreditDto.jcd_credit_id;
+  assert(jcdCreditContribs.length === contribDtos.length);
+  contribDtos.forEach(contrib => {
+    let foundCreditContrib = jcdCreditContribs.find(jcdCreditContrib => {
+      if(PersonDto.check(contrib)) {
+        return jcdCreditContrib.person_id === contrib.person_id;
+      }
+      if(OrgDto.check(contrib)) {
+        return jcdCreditContrib.org_id === contrib.org_id;
+      }
+      return false;
+    });
+    assert(foundCreditContrib !== undefined, `${jcdCreditDto.label}: ${contrib.name}`);
   });
-  assert(foundCreditContrib !== undefined);
-
-  let foundContrib = contribDtos.find(contrib => {
-    return (
-      PersonDto.check(contrib)
-      && (contrib.person_id === foundCreditContrib.person_id)
-    )
-    || (
-      OrgDto.check(contrib)
-      && (contrib.org_id === foundCreditContrib.org_id)
-    );
-  });
-  assert(foundContrib !== undefined);
 }
 
 async function upsertJcdCreditContrib(client: PoolClient, opts: {
