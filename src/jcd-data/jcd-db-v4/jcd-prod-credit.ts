@@ -217,7 +217,7 @@ async function getJcdProdCreditOrgContrib(client: PoolClient, opts: {
       INNER JOIN org o
         ON o.org_id = jpcc.org_id
     WHERE jpcc.jcd_prod_credit_id = $1
-      AND o.ord_id = $2
+      AND o.org_id = $2
     ORDER BY jpcc.last_modified DESC
   `;
   let res = await client.query(queryStr, [

@@ -15,17 +15,21 @@ import { JcdCreditContribDto, JcdCreditContribDtoType } from '../jcd-dto/jcd-cre
 import { JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
 import { JcdProdCredit, JcdProdCreditContrib } from './jcd-prod-credit';
 import { JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
+import { Timer } from '../../util/timer';
 
 export async function jcdDbV4Main() {
-
-  // let projects = JcdV4Projects;
-  let projects = JcdV4Projects.slice(0, 5);
+  let projects = JcdV4Projects;
+  // let projects = JcdV4Projects.slice(0, 5);
   console.log(projects.map(proj => proj.project_key));
+
+  let timer = Timer.start();
   for(let i = 0; i < projects.length; ++i) {
     let currProject = projects[i];
     await upsertProjectDef(currProject);
   }
   await PostgresClient.end();
+  let elapsedMs = timer.stop();
+  console.log(`upserted ${projects.length} in ${elapsedMs} ms`);
 }
 
 async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
