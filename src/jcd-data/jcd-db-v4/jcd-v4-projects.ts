@@ -1034,7 +1034,8 @@ const SWEENEY_TODD: JcdProjectDef = {
   venue: 'Smith Theatre',
   project_date: new Date('2019-10-15'),
   producer: [
-    [ 'o', 'The Noorda Center for the Performing Arts & Utah Repertory Theater Company' ],
+    [ 'o', 'The Noorda Center for the Performing Arts' ],
+    [ 'o', 'Utah Repertory Theater Company' ],
   ],
   description: [
     'As part of the inaugural season at The Noorda, the chilling macabre production starred Jeff McCarthy (Tony Award-nominee) and Jacquelyne Jones.',
