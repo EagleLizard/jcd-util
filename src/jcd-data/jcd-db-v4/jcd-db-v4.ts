@@ -1,5 +1,8 @@
 
+import assert from 'assert';
+
 import { type PoolClient } from 'pg';
+
 import { PostgresClient } from '../../lib/postgres-client';
 import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { JcdContribDef, JcdCreditDef, JcdProjectDef, JcdV4Projects } from './jcd-v4-projects';
@@ -9,6 +12,9 @@ import { JcdCreditDto, JcdCreditDtoType } from '../jcd-dto/jcd-credit-dto';
 import { PersonDtoType, PersonDto } from '../jcd-dto/person-dto';
 import { OrgDtoType, OrgDto } from '../jcd-dto/org-dto';
 import { JcdCreditContribDto, JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
+import { JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
+import { JcdProdCredit, JcdProdCreditContrib } from './jcd-prod-credit';
+import { JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
 
 export async function jcdDbV4Main() {
 
@@ -40,18 +46,50 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
     console.log(jcdProjectDto.jcd_project_id);
     console.log(jcdProjDescDto.jcd_project_description_id);
 
-    let jcdProjectCredits = await upsertJcdCredits(pgClient, {
+    await upsertJcdCredits(pgClient, {
       jcdProjectDef,
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
-    console.log('jcdProjectCredits:');
-    console.log(jcdProjectCredits);
+    await upsertJcdProdCredits(pgClient, {
+      jcdProjectDef,
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+    });
   });
 }
 
+async function upsertJcdProdCredits(client: PoolClient, opts: {
+  jcdProjectDef: JcdProjectDef;
+  jcd_project_id: number;
+}): Promise<JcdProdCreditDtoType[]> {
+  let jcdProdCredits: JcdProdCreditDtoType[] = [];
+  for(let i = 0; i < opts.jcdProjectDef.prod_credits.length; ++i) {
+    let currCreditDef = opts.jcdProjectDef.prod_credits[i];
+    let currCreditDto = await JcdProdCredit.upsert(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcdCreditDef: currCreditDef,
+    });
+    jcdProdCredits.push(currCreditDto);
+    let contribDtos: (PersonDtoType | OrgDtoType)[] = [];
+    let jcdProdCreditContribDtos: JcdProdCreditContribDtoType[] = [];
+    for(let k = 0; k < currCreditDef.contribs.length; ++k) {
+      let currContribDef = currCreditDef.contribs[k];
+      let currContribDto = await upsertContrib(client, {
+        contribDef: currContribDef,
+      });
+      contribDtos.push(currContribDto);
+      let jcdProdCreditContribDto = await JcdProdCreditContrib.upsert(client, {
+        jcdProdCreditDto: currCreditDto,
+        jcdContribDto: currContribDto,
+      });
+      jcdProdCreditContribDtos.push(jcdProdCreditContribDto);
+    }
+  }
+  return jcdProdCredits;
+}
+
 async function upsertJcdCredits(client: PoolClient, opts: {
-  jcdProjectDef: JcdProjectDef,
-  jcd_project_id: number,
+  jcdProjectDef: JcdProjectDef;
+  jcd_project_id: number;
 }): Promise<JcdCreditDtoType[]> {
   let jcdCredits: JcdCreditDtoType[] = [];
   for(let i = 0; i < opts.jcdProjectDef.credits.length; ++i) {
@@ -62,6 +100,7 @@ async function upsertJcdCredits(client: PoolClient, opts: {
     });
     jcdCredits.push(currCreditDto);
     let contribDtos: (PersonDtoType | OrgDtoType)[] = [];
+    let jcdCreditContribDtos: JcdCreditContribDtoType[] = [];
     for(let k = 0; k < currCredit.contribs.length; ++k) {
       let currContrib = currCredit.contribs[k];
       let currContribDto = await upsertContrib(client, {
@@ -72,19 +111,45 @@ async function upsertJcdCredits(client: PoolClient, opts: {
         jcdCreditDto: currCreditDto,
         jcdContribDto: currContribDto,
       });
-      console.log('jcdCreditContribDto:');
-      console.log(jcdCreditContribDto);
+      jcdCreditContribDtos.push(jcdCreditContribDto);
     }
+    /*
+      Assert new relationships
+     */
+    jcdCredits.forEach(jcdCredit => {
+      assertJcdCreditUpsert(jcdCredit, jcdCreditContribDtos, contribDtos);
+    });
   }
   return jcdCredits;
+}
+
+function assertJcdCreditUpsert(
+  jcdCreditDto: JcdCreditDtoType,
+  jcdCreditContribs: JcdCreditContribDtoType[],
+  contribDtos: (PersonDtoType | OrgDtoType)[],
+) {
+  let foundCreditContrib = jcdCreditContribs.find(jcdCreditContrib => {
+    return jcdCreditContrib.jcd_credit_id = jcdCreditDto.jcd_credit_id;
+  });
+  assert(foundCreditContrib !== undefined);
+
+  let foundContrib = contribDtos.find(contrib => {
+    return (
+      PersonDto.check(contrib)
+      && (contrib.person_id === foundCreditContrib.person_id)
+    )
+    || (
+      OrgDto.check(contrib)
+      && (contrib.org_id === foundCreditContrib.org_id)
+    );
+  });
+  assert(foundContrib !== undefined);
 }
 
 async function upsertJcdCreditContrib(client: PoolClient, opts: {
   jcdCreditDto: JcdCreditDtoType;
   jcdContribDto: PersonDtoType | OrgDtoType;
 }): Promise<JcdCreditContribDtoType> {
-  console.log(opts.jcdCreditDto);
-  console.log(opts.jcdContribDto);
   let jcdCreditContribDto = await getJcdCreditContrib(client, {
     jcd_credit_id: opts.jcdCreditDto.jcd_project_id,
     jcdContribDto: opts.jcdContribDto,
@@ -260,7 +325,7 @@ async function insertJcdCredit(client: PoolClient, opts: {
   jcd_project_id: number;
 }): Promise<JcdCreditDtoType> {
   let colNames = [
-    'text',
+    'label',
     'jcd_project_id',
   ];
   let colNums = colNames.map((_, idx) => `$${idx + 1}`);
@@ -284,7 +349,7 @@ async function getJcdCredit(client: PoolClient, opts: {
   let queryStr = `
     SELECT * FROM jcd_credit jc
       WHERE jc.jcd_project_id = $1
-      AND jc.text LIKE $2
+      AND jc.label LIKE $2
   `;
   let res = await client.query(queryStr, [
     opts.jcd_project_id,
@@ -301,7 +366,6 @@ async function upsertContrib(client: PoolClient, opts: {
   contribDef: JcdContribDef,
 }): Promise<PersonDtoType | OrgDtoType> {
   let contribDto: PersonDtoType | OrgDtoType;
-  console.log(opts.contribDef);
   switch(opts.contribDef[0]) {
     case 'p':
       contribDto = await upsertPerson(client, {
