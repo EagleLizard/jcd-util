@@ -145,63 +145,25 @@ const GO_HOME_COME_BACK: JcdProjectDef = {
   ],
   press: [
     {
-      publication: 'Front Row Reviewers',
-      description: 'The scenic design by Janice Chan is a showstopper, evoking the artistic opulence of Venetian style with floating works of art and red drapes creating a backdrop for the scene.',
+      publication: 'QSaltlake Magazine',
       link: {
-        label: 'Plan-B Theatre’s Balthazar in Salt Lake City, Utah: A Heartwarming Study of Love and Drag',
-        url: 'https://frontrowreviewers.com/?p=22422',
-      },
-    },
-    {
-      publication: 'The Utah Review',
-      description: 'The outstanding sensory effects of Janice Chan’s Venetian set design and Cluff’s selection of music to convey the Elizabethan Age in its finest humanistic splendor.',
-      link: {
-        label: ' Plan-B Theatre’s World Premiere of Debora Threedy’s Balthazar is a Crown Jewel of Intimate Chamber Theater',
-        url: 'https://www.theutahreview.com/plan-b-theatres-world-premiere-of-debora-threedys-balthazar-is-a-crown-jewel-of-intimate-chamber-theater/',
-      },
+        label: '‘Go Home Come Back’ is Heartfelt, Thought-Provoking, and Personal',
+        url: 'https://www.qsaltlake.com/news/2023/01/18/go-home-come-back-is-heartfelt-thought-provoking-and-personal/',
+      }
     },
     {
       publication: 'Gephardt Daily',
-      description: 'The production values too are exciting and innovative.',
       link: {
-        label: ' Review: Plan-B’s world premiere ‘Balthazar’ presents a timely riff on Shakespeare’s ‘Merchant of Venice’',
-        url: 'https://gephardtdaily.com/local/review-plan-bs-world-premiere-balthazar-presents-a-timely-riff-on-shakespeares-merchant-of-venice/',
-      },
+        label: 'Plan-B Theatre Continues its Season with a World Premiere about First Impressions, Second Chances',
+        url: 'https://gephardtdaily.com/local/plan-b-theatre-continues-its-season-with-a-world-premiere-about-first-impressions-second-chances/',
+      }
     },
     {
-      publication: 'Independent Review Crew',
+      publication: 'The Utah Review',
       link: {
-        label: 'Plan‑B Brings Shakespearean Gender Fluidity To The Stage',
-        url: 'https://reviews.newhavenindependent.org/reviews/plan_b_brings_shakespearean_gender_fluidity_to_the_stage',
-      },
-    },
-    {
-      publication: 'Rhetorical Review',
-      link: {
-        label: 'Reshaping Shakespeare for the Better: The World Premiere of Balthazar by Debora Threedy',
-        url: 'https://rhetoricalreview.com/2024/02/15/reshaping-shakespeare-for-the-better-the-world-premiere-of-balthazar-by-debora-threedy/',
-      },
-    },
-    {
-      publication: '15 Bytes',
-      link: {
-        label: 'Debora Threedy’s “Balthazar” is a Lively and Fun Piece of Shakespearean Fan Fiction',
-        url: 'https://artistsofutah.org/15Bytes/index.php/debora-threedys-balthazar-is-a-lively-and-fun-piece-of-shakespearean-fan-fiction/',
-      },
-    },
-    {
-      publication: 'Salt Lake Magazine',
-      link: {
-        label: 'Review: Balthazar at Plan-B Theatre',
-        url: 'https://www.saltlakemagazine.com/balthazar-plan-b-theatre/',
-      },
-    },
-    {
-      publication: 'SLUG Mag',
-      link: {
-        label: 'Queer Shakespeare: Plan-B Theatre’s Balthazar Reads Between the Scenes',
-        url: 'https://www.slugmag.com/arts/art/interviews-features/queer-shakespeare-plan-b-theatres-balthazar-reads-between-the-scenes/',
-      },
+        label: 'Nourishing the Soul: Matchstick Girl by Jennifer Kokai and Kenneth Plain at Weber State Theatre, Go Home Come Back by Darryl Stamp at Plan-B Theatre',
+        url: 'https://www.theutahreview.com/nourishing-the-soul-matchstick-girl-by-jennifer-kokai-and-kenneth-plain-at-weber-state-theatre-go-home-come-back-by-darryl-stamp-at-plan-b-theatre/',
+      }
     },
   ],
 };
