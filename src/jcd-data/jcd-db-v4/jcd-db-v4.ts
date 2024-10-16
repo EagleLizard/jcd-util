@@ -8,6 +8,7 @@ import { Timer } from '../../util/timer';
 import {
   JcdContribDef,
   JcdCreditDef,
+  JcdImageDef,
   JcdProjectDef,
   JcdV4Projects,
 } from './jcd-v4-projects';
@@ -32,6 +33,8 @@ import { Description, JcdProjectDesc } from './jcd-desc';
 import { JcdProject } from './jcd-project';
 import { JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
 import { JcdProjectVenue, Venue } from './jcd-project-venue';
+import { JcdProjectImageDtoType } from '../jcd-dto/jcd-project-image-dto';
+import { JcdImage, JcdProjectImage } from './jcd-image';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -90,7 +93,58 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       jcdProjectDef,
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
+    await upsertJcdImages(pgClient, {
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+      jcdImageDefs: jcdProjectDef.images,
+    });
   });
+}
+
+async function upsertJcdImages(client: PoolClient, opts: {
+  jcd_project_id: number;
+  jcdImageDefs: JcdImageDef[];
+}): Promise<JcdProjectImageDtoType[]> {
+  let jcdProjectImageDtos: JcdProjectImageDtoType[] = [];
+
+  for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
+    let currImageDef = opts.jcdImageDefs[i];
+    let jcdImageDto = await JcdImage.getByPath(client, {
+      path: currImageDef[1],
+    });
+    if(jcdImageDto === undefined) {
+      jcdImageDto = await JcdImage.insert(client, {
+        path: currImageDef[1],
+      });
+    }
+    let jcdImageKind = imageDtoKindFromDef(currImageDef);
+    let jcdProjectImageDto = await JcdProjectImage.get(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcd_image_id: jcdImageDto.jcd_image_id,
+      kind: jcdImageKind,
+    });
+    if(jcdProjectImageDto === undefined) {
+      jcdProjectImageDto = await JcdProjectImage.insert(client, {
+        jcd_project_id: opts.jcd_project_id,
+        jcd_image_id: jcdImageDto.jcd_image_id,
+        kind: jcdImageKind,
+      });
+    }
+    jcdProjectImageDtos.push(jcdProjectImageDto);
+  }
+
+  return jcdProjectImageDtos;
+}
+
+function imageDtoKindFromDef(def: JcdImageDef): JcdProjectImageDtoType['kind'] {
+  switch(def[0]) {
+    case 'g':
+      return 'gallery';
+    case 't':
+      return 'title';
+    default:
+      console.error(def);
+      throw new Error(`Invalid JcdImageDef kind: ${def[0]}`);
+  }
 }
 
 async function upsertJcdVenue(client: PoolClient, opts: {

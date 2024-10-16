@@ -73,8 +73,8 @@ type LinkDef = {
   url: string;
 };
 
-type JcdImageDefKind = 't' | 'g';
-type JcdImageDef = [ JcdImageDefKind, string ];
+export type JcdImageDefKind = 't' | 'g';
+export type JcdImageDef = [ JcdImageDefKind, string ];
 
 const GO_HOME_COME_BACK: JcdProjectDef = {
   project_key: 'GO_HOME_COME_BACK',

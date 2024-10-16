@@ -54,9 +54,9 @@ async function getJcdProjectImage(client: PoolClient, opts: {
       INNER JOIN jcd_project_image jpi
         ON jp.jcd_project_id = jpi.jcd_project_id
       INNER JOIN jcd_image ji
-        ON jp.jcd_project_id = ji.jcd_project_id
+        ON ji.jcd_image_id = jpi.jcd_image_id
     WHERE jpi.jcd_project_id = $1
-      AND jpi.image_id = $2
+      AND jpi.jcd_image_id = $2
       AND jpi.kind = $3
     ORDER BY jpi.last_modified DESC
   `;
