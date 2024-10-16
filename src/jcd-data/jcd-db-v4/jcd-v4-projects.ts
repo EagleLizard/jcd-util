@@ -53,6 +53,7 @@ export type JcdProjectDef = {
   credits: JcdCreditDef[];
   prod_credits: JcdCreditDef[];
   press: PressDef[];
+  images: JcdImageDef[];
 };
 type VenueDef = string;
 export type JcdContribDefKind = 'p' | 'o';
@@ -71,6 +72,9 @@ type LinkDef = {
   label: string;
   url: string;
 };
+
+type JcdImageDefKind = 't' | 'g';
+type JcdImageDef = [ JcdImageDefKind, string ];
 
 const GO_HOME_COME_BACK: JcdProjectDef = {
   project_key: 'GO_HOME_COME_BACK',
@@ -166,6 +170,16 @@ const GO_HOME_COME_BACK: JcdProjectDef = {
       }
     },
   ],
+  images: [
+    [ 't', 'go-home/00-Go-Home.jpg' ],
+    [ 'g', 'go-home/01-Go-Home.jpg' ],
+    [ 'g', 'go-home/02-Go-Home.jpg' ],
+    [ 'g', 'go-home/03-Go-Home.jpg' ],
+    [ 'g', 'go-home/04-Go-Home.jpg' ],
+    [ 'g', 'go-home/05-Go-Home.jpg' ],
+    [ 'g', 'go-home/06-Go-Home.jpg' ],
+    [ 'g', 'go-home/07-Go-Home.jpg' ],
+  ]
 };
 
 const THE_DIARY_OF_ANNE_FRANK: JcdProjectDef = {
@@ -243,6 +257,20 @@ const THE_DIARY_OF_ANNE_FRANK: JcdProjectDef = {
         url: 'https://www.uvureview.com/valley-life/the-diary-of-anne-frank-a-story-of-joy-and-pain/',
       }
     }
+  ],
+  images: [
+    [ 't', 'anne-frank/00-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/01-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/02-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/03-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/04-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/05-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/06-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/07-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/08-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/09-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/10-Anne-Frank.jpg' ],
+    [ 'g', 'anne-frank/11-Anne-Frank.jpg' ],
   ],
 };
 
@@ -378,6 +406,17 @@ const BALTHAZAR: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', 'balthazar/00-Balthazar.jpg' ],
+    [ 'g', 'balthazar/01-Balthazar.jpg' ],
+    [ 'g', 'balthazar/02-Balthazar.jpg' ],
+    [ 'g', 'balthazar/03-Balthazar.jpg' ],
+    [ 'g', 'balthazar/04-Balthazar.jpg' ],
+    [ 'g', 'balthazar/05-Balthazar.jpg' ],
+    [ 'g', 'balthazar/06-Balthazar.jpg' ],
+    [ 'g', 'balthazar/07-Balthazar.jpg' ],
+    [ 'g', 'balthazar/08-Balthazar.jpg' ],
+  ],
 };
 
 const THE_TALES_OF_HOFFMANN: JcdProjectDef = {
@@ -446,6 +485,21 @@ const THE_TALES_OF_HOFFMANN: JcdProjectDef = {
     },
   ],
   press: [],
+  images: [
+    [ 't', '1-hoffman/00-hoffmann-title.jpg' ],
+    [ 'g', '1-hoffman/01-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/02-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/03-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/04-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/05-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/06-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/07-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/08-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/09-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/10-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/11-hoffmann.jpg' ],
+    [ 'g', '1-hoffman/12-hoffmann.jpg' ],
+  ],
 };
 
 const LARAMIE_PROJECT: JcdProjectDef = {
@@ -558,6 +612,23 @@ const LARAMIE_PROJECT: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '2-laramie/00-laramie-title.jpg' ],
+    [ 'g', '2-laramie/01-laramie.jpg' ],
+    [ 'g', '2-laramie/02-laramie.jpg' ],
+    [ 'g', '2-laramie/03-laramie.jpg' ],
+    [ 'g', '2-laramie/04-laramie.jpg' ],
+    [ 'g', '2-laramie/05-laramie.jpg' ],
+    [ 'g', '2-laramie/06-laramie.jpg' ],
+    [ 'g', '2-laramie/07-laramie.jpg' ],
+    [ 'g', '2-laramie/08-laramie.jpg' ],
+    [ 'g', '2-laramie/09-laramie.jpg' ],
+    [ 'g', '2-laramie/10-laramie.jpg' ],
+    [ 'g', '2-laramie/11-laramie.jpg' ],
+    [ 'g', '2-laramie/12-laramie.jpg' ],
+    [ 'g', '2-laramie/13-laramie.jpg' ],
+    [ 'g', '2-laramie/14-laramie.jpg' ],
+  ],
 };
 
 const MY_BROTHER_WAS_A_VAMPIRE: JcdProjectDef = {
@@ -655,6 +726,21 @@ const MY_BROTHER_WAS_A_VAMPIRE: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '3-vampire/00-vampire-title.jpg' ],
+    [ 'g', '3-vampire/01-vampire.jpg' ],
+    [ 'g', '3-vampire/02-vampire.jpg' ],
+    [ 'g', '3-vampire/03-vampire.jpg' ],
+    [ 'g', '3-vampire/04-vampire.jpg' ],
+    [ 'g', '3-vampire/05-vampire.jpg' ],
+    [ 'g', '3-vampire/06-vampire.jpg' ],
+    [ 'g', '3-vampire/07-vampire.jpg' ],
+    [ 'g', '3-vampire/08-vampire.jpg' ],
+    [ 'g', '3-vampire/09-vampire.jpg' ],
+    [ 'g', '3-vampire/10-vampire.jpg' ],
+    [ 'g', '3-vampire/11-vampire.jpg' ],
+    [ 'g', '3-vampire/12-vampire.jpg' ],
+  ],
 };
 
 const LA_BOHEME: JcdProjectDef = {
@@ -737,6 +823,22 @@ const LA_BOHEME: JcdProjectDef = {
         url: 'https://www.pbs.org/video/the-noorda-la-boheme-noaot2/',
       },
     },
+  ],
+  images: [
+    [ 't', '4-boheme/00-boheme-title.jpg' ],
+    [ 'g', '4-boheme/01-boheme.jpg' ],
+    [ 'g', '4-boheme/02-boheme.jpg' ],
+    [ 'g', '4-boheme/03-boheme.jpg' ],
+    [ 'g', '4-boheme/04-boheme.jpg' ],
+    [ 'g', '4-boheme/05-boheme.jpg' ],
+    [ 'g', '4-boheme/06-boheme.jpg' ],
+    [ 'g', '4-boheme/07-boheme.jpg' ],
+    [ 'g', '4-boheme/08-boheme.jpg' ],
+    [ 'g', '4-boheme/09-boheme.jpg' ],
+    [ 'g', '4-boheme/10-boheme.jpg' ],
+    [ 'g', '4-boheme/11-boheme.jpg' ],
+    [ 'g', '4-boheme/12-boheme.jpg' ],
+    [ 'g', '4-boheme/13-boheme.jpg' ],
   ],
 };
 
@@ -829,6 +931,25 @@ const URINETOWN: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '5-urinetown/00-urinetown-title.jpg' ],
+    [ 'g', '5-urinetown/01-urinetown.jpg' ],
+    [ 'g', '5-urinetown/02-urinetown.jpg' ],
+    [ 'g', '5-urinetown/03-urinetown.jpg' ],
+    [ 'g', '5-urinetown/04-urinetown.jpg' ],
+    [ 'g', '5-urinetown/05-urinetown.jpg' ],
+    [ 'g', '5-urinetown/06-urinetown.jpg' ],
+    [ 'g', '5-urinetown/07-urinetown.jpg' ],
+    [ 'g', '5-urinetown/08-urinetown.jpg' ],
+    [ 'g', '5-urinetown/09-urinetown.jpg' ],
+    [ 'g', '5-urinetown/10-urinetown.jpg' ],
+    [ 'g', '5-urinetown/11-urinetown.jpg' ],
+    [ 'g', '5-urinetown/12-urinetown.jpg' ],
+    [ 'g', '5-urinetown/13-urinetown.jpg' ],
+    [ 'g', '5-urinetown/14-urinetown.jpg' ],
+    [ 'g', '5-urinetown/15-urinetown.jpg' ],
+    [ 'g', '5-urinetown/16-urinetown.jpg' ],
+  ],
 };
 
 const THE_TEMPEST: JcdProjectDef = {
@@ -903,6 +1024,16 @@ const THE_TEMPEST: JcdProjectDef = {
     },
   ],
   press: [],
+  images: [
+    [ 't', '6-tempest/00-tempest-title.jpg' ],
+    [ 'g', '6-tempest/01-tempest.jpg' ],
+    [ 'g', '6-tempest/02-tempest.jpg' ],
+    [ 'g', '6-tempest/03-tempest.jpg' ],
+    [ 'g', '6-tempest/04-tempest.jpg' ],
+    [ 'g', '6-tempest/05-tempest.jpg' ],
+    [ 'g', '6-tempest/06-tempest.jpg' ],
+    [ 'g', '6-tempest/07-tempest.jpg' ],
+  ],
 };
 
 const AFTERSHOCK: JcdProjectDef = {
@@ -985,6 +1116,28 @@ const AFTERSHOCK: JcdProjectDef = {
         url: 'https://frontrowreviewersutah.com/?p=17185&utm_source=rss&utm_medium=rss&utm_campaign=plan-b-theatres-world-premiere-of-aftershock-shakes-up-salt-lake-city-asking-whats-coming-to-the-surface',
       },
     },
+  ],
+  images: [
+    [ 't', '7-aftershock/00-aftershock-title.jpg' ],
+    [ 'g', '7-aftershock/01-aftershock.jpg' ],
+    [ 'g', '7-aftershock/02-aftershock.jpg' ],
+    [ 'g', '7-aftershock/03-aftershock.jpg' ],
+    [ 'g', '7-aftershock/04-aftershock.jpg' ],
+    [ 'g', '7-aftershock/05-aftershock.jpg' ],
+    [ 'g', '7-aftershock/06-aftershock.jpg' ],
+    [ 'g', '7-aftershock/07-aftershock.jpg' ],
+    [ 'g', '7-aftershock/08-aftershock.jpg' ],
+    [ 'g', '7-aftershock/09-aftershock.jpg' ],
+    [ 'g', '7-aftershock/10-aftershock.jpg' ],
+    [ 'g', '7-aftershock/11-aftershock.jpg' ],
+    [ 'g', '7-aftershock/12-aftershock.jpg' ],
+    [ 'g', '7-aftershock/13-aftershock.jpg' ],
+    [ 'g', '7-aftershock/14-aftershock.jpg' ],
+    [ 'g', '7-aftershock/15-aftershock.jpg' ],
+    [ 'g', '7-aftershock/16-aftershock.jpg' ],
+    [ 'g', '7-aftershock/17-aftershock.jpg' ],
+    [ 'g', '7-aftershock/18-aftershock.jpg' ],
+    [ 'g', '7-aftershock/19-aftershock.jpg' ],
   ],
 };
 
@@ -1109,6 +1262,27 @@ const SWEENEY_TODD: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '8-sweeney/00-sweeney-title.jpg' ],
+    [ 'g', '8-sweeney/01-sweeney.jpg' ],
+    [ 'g', '8-sweeney/02-sweeney.jpg' ],
+    [ 'g', '8-sweeney/03-sweeney.jpg' ],
+    [ 'g', '8-sweeney/04-sweeney.jpg' ],
+    [ 'g', '8-sweeney/05-sweeney.jpg' ],
+    [ 'g', '8-sweeney/06-sweeney.jpg' ],
+    [ 'g', '8-sweeney/07-sweeney.jpg' ],
+    [ 'g', '8-sweeney/08-sweeney.jpg' ],
+    [ 'g', '8-sweeney/09-sweeney.jpg' ],
+    [ 'g', '8-sweeney/10-sweeney.jpg' ],
+    [ 'g', '8-sweeney/11-sweeney.jpg' ],
+    [ 'g', '8-sweeney/12-sweeney.jpg' ],
+    [ 'g', '8-sweeney/13-sweeney.jpg' ],
+    [ 'g', '8-sweeney/14-sweeney.jpg' ],
+    [ 'g', '8-sweeney/15-sweeney.jpg' ],
+    [ 'g', '8-sweeney/16-sweeney.jpg' ],
+    [ 'g', '8-sweeney/17-sweeney.jpg' ],
+    [ 'g', '8-sweeney/18-sweeney.jpg' ],
+  ],
 };
 
 const JAMES_AND_THE_GIANT_PEACH: JcdProjectDef = {
@@ -1200,6 +1374,23 @@ const JAMES_AND_THE_GIANT_PEACH: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '10-james-and-the-giant-peach/00-james-title.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/01-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/02-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/03-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/04-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/05-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/06-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/07-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/08-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/09-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/10-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/11-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/12-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/13-james.jpg' ],
+    [ 'g', '10-james-and-the-giant-peach/14-james.jpg' ],
+  ],
 };
 
 const THE_DRAG: JcdProjectDef = {
@@ -1279,6 +1470,19 @@ const THE_DRAG: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '11-the-drag/00-drag-title.jpg' ],
+    [ 'g', '11-the-drag/01-drag.jpg' ],
+    [ 'g', '11-the-drag/02-drag.jpg' ],
+    [ 'g', '11-the-drag/03-drag.jpg' ],
+    [ 'g', '11-the-drag/04-drag.jpg' ],
+    [ 'g', '11-the-drag/05-drag.jpg' ],
+    [ 'g', '11-the-drag/06-drag.jpg' ],
+    [ 'g', '11-the-drag/07-drag.jpg' ],
+    [ 'g', '11-the-drag/08-drag.jpg' ],
+    [ 'g', '11-the-drag/09-drag.jpg' ],
+    [ 'g', '11-the-drag/10-drag.jpg' ],
+  ],
 };
 
 const AGAMEMNON: JcdProjectDef = {
@@ -1347,6 +1551,17 @@ const AGAMEMNON: JcdProjectDef = {
     },
   ],
   press: [],
+  images: [
+    [ 't', '12-agamemnon/00-agamemnon-title.jpg' ],
+    [ 'g', '12-agamemnon/01-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/02-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/03-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/04-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/05-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/06-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/07-agamemnon.jpg' ],
+    [ 'g', '12-agamemnon/08-agamemnon.jpg' ],
+  ],
 };
 
 const CINDERELLA_EATS_RICE_AND_BEANS: JcdProjectDef = {
@@ -1429,6 +1644,16 @@ const CINDERELLA_EATS_RICE_AND_BEANS: JcdProjectDef = {
         url: 'https://www.uvureview.com/valley-life/bilingual-theater-for-youth-revives-old-tales-with-new-world-issues/?amp_markup=1',
       },
     },
+  ],
+  images: [
+    [ 't', '13-cinderella-eats-rice-and-beans/00-cinderella-title.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/01-cinderella.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/02-cinderella.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/03-cinderella.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/04-cinderella.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/05-cinderella.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/06-cinderella.jpg' ],
+    [ 'g', '13-cinderella-eats-rice-and-beans/07-cinderella.jpg' ],
   ],
 };
 
@@ -1550,6 +1775,17 @@ const THE_CLEAN_UP_PROJECT: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '14-the-clean-up-project/00-clean-up-title.jpg' ],
+    [ 'g', '14-the-clean-up-project/01-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/02-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/03-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/04-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/05-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/06-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/07-clean-up.jpg' ],
+    [ 'g', '14-the-clean-up-project/08-clean-up.jpg' ],
+  ],
 };
 
 const NEXT_FALL: JcdProjectDef = {
@@ -1622,6 +1858,19 @@ const NEXT_FALL: JcdProjectDef = {
       },
     },
   ],
+  images: [
+    [ 't', '15-next-fall/00-next-fall-title.jpg' ],
+    [ 'g', '15-next-fall/01-next-fall.jpg' ],
+    [ 'g', '15-next-fall/02-next-fall.jpg' ],
+    [ 'g', '15-next-fall/03-next-fall.jpg' ],
+    [ 'g', '15-next-fall/04-next-fall.jpg' ],
+    [ 'g', '15-next-fall/05-next-fall.jpg' ],
+    [ 'g', '15-next-fall/06-next-fall.jpg' ],
+    [ 'g', '15-next-fall/07-next-fall.jpg' ],
+    [ 'g', '15-next-fall/08-next-fall.jpg' ],
+    [ 'g', '15-next-fall/09-next-fall.jpg' ],
+    [ 'g', '15-next-fall/10-next-fall.jpg' ],
+  ],
 };
 
 const TRIBES: JcdProjectDef = {
@@ -1691,6 +1940,16 @@ const TRIBES: JcdProjectDef = {
         url: 'https://frontrowreviewersutah.com/?p=6352',
       },
     },
+  ],
+  images: [
+    [ 't', '16-tribes/00-tribes-title.jpg' ],
+    [ 'g', '16-tribes/01-tribes.jpg' ],
+    [ 'g', '16-tribes/02-tribes.jpg' ],
+    [ 'g', '16-tribes/03-tribes.jpg' ],
+    [ 'g', '16-tribes/04-tribes.jpg' ],
+    [ 'g', '16-tribes/05-tribes.jpg' ],
+    [ 'g', '16-tribes/06-tribes.jpg' ],
+    [ 'g', '16-tribes/07-tribes.jpg' ],
   ],
 };
 
