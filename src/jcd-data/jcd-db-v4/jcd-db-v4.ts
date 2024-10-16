@@ -13,6 +13,7 @@ import {
 } from './jcd-v4-projects';
 import { JcdProducer } from './jcd-producer';
 import { JcdProdCredit, JcdProdCreditContrib } from './jcd-prod-credit';
+import { JcdPress, Publication } from './jcd-press';
 import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { DescriptionDto } from '../jcd-dto/description-dto';
 import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
@@ -23,6 +24,8 @@ import { JcdCreditContribDto, JcdCreditContribDtoType } from '../jcd-dto/jcd-cre
 import { JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
 import { JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
 import { JcdProducerDtoType } from '../jcd-dto/jcd-producer-dto';
+import { PublicationDtoType } from '../jcd-dto/publication-dto';
+import { JcdPressDtoType } from '../jcd-dto/jcd-press-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -69,7 +72,63 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       jcdProjectDef,
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
+    await upsertJcdPress(pgClient, {
+      jcdProjectDef,
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+    });
   });
+}
+
+async function upsertJcdPress(client: PoolClient, opts: {
+  jcdProjectDef: JcdProjectDef;
+  jcd_project_id: number;
+}): Promise<JcdPressDtoType[]> {
+  let jcdPressDtos: JcdPressDtoType[] = [];
+  let publicationDtos: PublicationDtoType[] = [];
+  for(let i = 0; i < opts.jcdProjectDef.press.length; ++i) {
+    let currPressDef = opts.jcdProjectDef.press[i];
+    let publicationDto = await Publication.getByName(client, {
+      name: currPressDef.publication,
+    });
+    if(publicationDto === undefined) {
+      publicationDto = await Publication.insert(client, {
+        name: currPressDef.publication,
+      });
+    }
+    publicationDtos.push(publicationDto);
+    let jcdPressDto = await JcdPress.get(client, {
+      jcd_project_id: opts.jcd_project_id,
+      publication_id: publicationDto.publication_id,
+    });
+    if(jcdPressDto === undefined) {
+      jcdPressDto = await JcdPress.insert(client, {
+        jcd_project_id: opts.jcd_project_id,
+        publication_id: publicationDto.publication_id,
+        link_text: currPressDef.link.label,
+        link_url: currPressDef.link.url,
+        description: currPressDef.description,
+      });
+    }
+    jcdPressDtos.push(jcdPressDto);
+  }
+  /*
+    Assert jcd_press relations
+   */
+  assertJcdPressUpserts(publicationDtos, jcdPressDtos);
+  return jcdPressDtos;
+}
+
+function assertJcdPressUpserts(
+  publicationDtos: PublicationDtoType[],
+  jcdPressDtos: JcdPressDtoType[],
+) {
+  for(let i = 0; i < publicationDtos.length; ++i) {
+    let publicationDto = publicationDtos[i];
+    let foundJcdPressDto = jcdPressDtos.find(jcdPressDto => {
+      return publicationDto.publication_id === jcdPressDto.publication_id;
+    });
+    assert(foundJcdPressDto !== undefined, `${publicationDto.name}: ${foundJcdPressDto?.link_text}`);
+  }
 }
 
 async function upsertJcdProducers(client: PoolClient, opts: {
