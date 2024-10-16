@@ -4,8 +4,16 @@ import assert from 'assert';
 import { type PoolClient } from 'pg';
 
 import { PostgresClient } from '../../lib/postgres-client';
+import { Timer } from '../../util/timer';
+import {
+  JcdContribDef,
+  JcdCreditDef,
+  JcdProjectDef,
+  JcdV4Projects,
+} from './jcd-v4-projects';
+import { JcdProducer } from './jcd-producer';
+import { JcdProdCredit, JcdProdCreditContrib } from './jcd-prod-credit';
 import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
-import { JcdContribDef, JcdCreditDef, JcdProjectDef, JcdV4Projects } from './jcd-v4-projects';
 import { DescriptionDto } from '../jcd-dto/description-dto';
 import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
 import { JcdCreditDto, JcdCreditDtoType } from '../jcd-dto/jcd-credit-dto';
@@ -13,9 +21,8 @@ import { PersonDtoType, PersonDto } from '../jcd-dto/person-dto';
 import { OrgDtoType, OrgDto } from '../jcd-dto/org-dto';
 import { JcdCreditContribDto, JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
 import { JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
-import { JcdProdCredit, JcdProdCreditContrib } from './jcd-prod-credit';
 import { JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
-import { Timer } from '../../util/timer';
+import { JcdProducerDtoType } from '../jcd-dto/jcd-producer-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -58,7 +65,38 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       jcdProjectDef,
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
+    await upsertJcdProducers(pgClient, {
+      jcdProjectDef,
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+    });
   });
+}
+
+async function upsertJcdProducers(client: PoolClient, opts: {
+  jcdProjectDef: JcdProjectDef;
+  jcd_project_id: number;
+}): Promise<JcdProducerDtoType[]> {
+  let jcdProducerDtos: JcdProducerDtoType[] = [];
+
+  for(let i = 0; i < opts.jcdProjectDef.producer.length; ++i) {
+    let currProducerDef = opts.jcdProjectDef.producer[i];
+    let contribDto = await upsertContrib(client, {
+      contribDef: currProducerDef,
+    });
+    let jcdProducerDto = await JcdProducer.get(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcdContribDto: contribDto,
+    });
+    if(jcdProducerDto === undefined) {
+      jcdProducerDto = await JcdProducer.insert(client, {
+        jcd_project_id: opts.jcd_project_id,
+        jcdContribDto: contribDto,
+      });
+    }
+    jcdProducerDtos.push(jcdProducerDto);
+  }
+
+  return jcdProducerDtos;
 }
 
 async function upsertJcdProdCredits(client: PoolClient, opts: {
@@ -257,7 +295,7 @@ async function getJcdCreditContrib(client: PoolClient, opts: {
       jcd_credit_id: opts.jcd_credit_id,
       jcdContribDto: opts.jcdContribDto,
     });
-  } else if (OrgDto.check(opts.jcdContribDto)) {
+  } else if(OrgDto.check(opts.jcdContribDto)) {
     jcdCreditContribDto = await getJcdCreditOrgContrib(client, {
       jcd_credit_id: opts.jcd_credit_id,
       jcdContribDto: opts.jcdContribDto,
