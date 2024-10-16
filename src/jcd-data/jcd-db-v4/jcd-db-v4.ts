@@ -30,6 +30,8 @@ import { JcdCredit, JcdCreditContrib } from './jcd-credit';
 import { Org, Person } from './jcd-contrib';
 import { Description, JcdProjectDesc } from './jcd-desc';
 import { JcdProject } from './jcd-project';
+import { JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
+import { JcdProjectVenue, Venue } from './jcd-project-venue';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -47,7 +49,7 @@ export async function jcdDbV4Main() {
 }
 
 async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
-  console.log(jcdProjectDef.project_key);
+  console.log(`\n${jcdProjectDef.project_key}`);
   await PostgresClient.transact(async (pgClient) => {
     let jcdProjectDto = await upsertProject(pgClient, jcdProjectDef);
 
@@ -61,8 +63,16 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       description_id: descDto.description_id,
     });
 
-    console.log(jcdProjectDto.jcd_project_id);
-    console.log(jcdProjDescDto.jcd_project_description_id);
+    let jcdProjVenueDto = await upsertJcdVenue(pgClient, {
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+      name: jcdProjectDef.venue,
+    });
+
+    console.log([
+      jcdProjectDto.jcd_project_id,
+      jcdProjDescDto.jcd_project_description_id,
+      jcdProjVenueDto.venue_id,
+    ]);
 
     await upsertJcdCredits(pgClient, {
       jcdProjectDef,
@@ -81,6 +91,31 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
   });
+}
+
+async function upsertJcdVenue(client: PoolClient, opts: {
+  jcd_project_id: number;
+  name: string;
+}): Promise<JcdProjectVenueDtoType> {
+  let venueDto = await Venue.getByName(client, {
+    name: opts.name,
+  });
+  if(venueDto === undefined) {
+    venueDto = await Venue.insert(client, {
+      name: opts.name,
+    });
+  }
+  let jcdProjectVenueDto = await JcdProjectVenue.get(client, {
+    jcd_project_id: opts.jcd_project_id,
+    venue_id: venueDto.venue_id,
+  });
+  if(jcdProjectVenueDto === undefined) {
+    jcdProjectVenueDto = await JcdProjectVenue.insert(client, {
+      jcd_project_id: opts.jcd_project_id,
+      venue_id: venueDto.venue_id,
+    });
+  }
+  return jcdProjectVenueDto;
 }
 
 async function upsertJcdPress(client: PoolClient, opts: {
