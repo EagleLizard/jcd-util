@@ -1,6 +1,7 @@
 
 import { Pool, PoolClient, QueryConfig, QueryResult } from 'pg';
 import { config } from '../config';
+import { isPromise } from 'util/types';
 
 const pgPool = new Pool({
   host: config.POSTGRES_HOST,
@@ -22,13 +23,18 @@ export  class PostgresClient {
     return queryRes;
   }
 
-  static async transact(cb: (client: PoolClient) => Promise<void>) {
+  static async transact<T>(cb: (client: PoolClient) => Promise<T> | T): Promise<T> {
     let txnClient: PoolClient;
+    let cbResult: Promise<T> | T;
     txnClient = await PostgresClient.getClient();
     try {
-      await txnClient.query('BEGIN');
-      await cb(txnClient);
+      await txnClient.query('BEGIN;');
+      cbResult = cb(txnClient);
+      if(isPromise(cbResult)) {
+        await cbResult;
+      }
       await txnClient.query('COMMIT');
+      return cbResult;
     } catch(e) {
       await txnClient.query('ROLLBACK');
       throw e;

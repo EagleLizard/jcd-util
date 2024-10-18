@@ -108,31 +108,42 @@ async function upsertJcdImages(client: PoolClient, opts: {
 
   for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
     let currImageDef = opts.jcdImageDefs[i];
-    let jcdImageDto = await JcdImage.getByPath(client, {
-      path: currImageDef[1],
-    });
-    if(jcdImageDto === undefined) {
-      jcdImageDto = await JcdImage.insert(client, {
-        path: currImageDef[1],
-      });
-    }
-    let jcdImageKind = imageDtoKindFromDef(currImageDef);
-    let jcdProjectImageDto = await JcdProjectImage.get(client, {
+    let jcdProjectImageDto = await upsertJcdImage(client, {
       jcd_project_id: opts.jcd_project_id,
-      jcd_image_id: jcdImageDto.jcd_image_id,
-      kind: jcdImageKind,
+      imageDef: currImageDef,
     });
-    if(jcdProjectImageDto === undefined) {
-      jcdProjectImageDto = await JcdProjectImage.insert(client, {
-        jcd_project_id: opts.jcd_project_id,
-        jcd_image_id: jcdImageDto.jcd_image_id,
-        kind: jcdImageKind,
-      });
-    }
     jcdProjectImageDtos.push(jcdProjectImageDto);
   }
 
   return jcdProjectImageDtos;
+}
+
+async function upsertJcdImage(client: PoolClient, opts: {
+  jcd_project_id: number;
+  imageDef: JcdImageDef;
+}) {
+  let jcdImageDto = await JcdImage.getByPath(client, {
+    path: opts.imageDef[1],
+  });
+  if(jcdImageDto === undefined) {
+    jcdImageDto = await JcdImage.insert(client, {
+      path: opts.imageDef[1],
+    });
+  }
+  let jcdImageKind = imageDtoKindFromDef(opts.imageDef);
+  let jcdProjectImageDto = await JcdProjectImage.get(client, {
+    jcd_project_id: opts.jcd_project_id,
+    jcd_image_id: jcdImageDto.jcd_image_id,
+    kind: jcdImageKind,
+  });
+  if(jcdProjectImageDto === undefined) {
+    jcdProjectImageDto = await JcdProjectImage.insert(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcd_image_id: jcdImageDto.jcd_image_id,
+      kind: jcdImageKind,
+    });
+  }
+  return jcdProjectImageDto;
 }
 
 function imageDtoKindFromDef(def: JcdImageDef): JcdProjectImageDtoType['kind'] {
