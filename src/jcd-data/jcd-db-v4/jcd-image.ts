@@ -1,6 +1,7 @@
-import { PoolClient } from 'pg';
+
 import { JcdImageDto, JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
 import { JcdProjectImageDto, JcdProjectImageDtoType } from '../jcd-dto/jcd-project-image-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const JcdImage = {
   getByPath: getImageByPath,
@@ -12,7 +13,7 @@ export const JcdProjectImage = {
   insert: insertJcdProjectImage,
 } as const;
 
-async function getImageByPath(client: PoolClient, opts: {
+async function getImageByPath(client: DbClient, opts: {
   path: string;
 }): Promise<JcdImageDtoType | undefined> {
   let queryStr = `
@@ -29,7 +30,7 @@ async function getImageByPath(client: PoolClient, opts: {
   return jcdImageDto;
 }
 
-async function insertImage(client: PoolClient, opts: {
+async function insertImage(client: DbClient, opts: {
   path: string;
 }): Promise<JcdImageDtoType> {
   let queryStr = `
@@ -44,7 +45,7 @@ async function insertImage(client: PoolClient, opts: {
   return jcdImageDto;
 }
 
-async function getJcdProjectImage(client: PoolClient, opts: {
+async function getJcdProjectImage(client: DbClient, opts: {
   jcd_project_id: number;
   jcd_image_id: number;
   kind: JcdProjectImageDtoType['kind'];
@@ -72,7 +73,7 @@ async function getJcdProjectImage(client: PoolClient, opts: {
   return jcdProjectImageDto;
 }
 
-async function insertJcdProjectImage(client: PoolClient, opts: {
+async function insertJcdProjectImage(client: DbClient, opts: {
   jcd_project_id: number;
   jcd_image_id: number;
   kind: JcdProjectImageDtoType['kind'];

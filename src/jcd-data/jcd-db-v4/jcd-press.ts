@@ -1,7 +1,7 @@
 
-import { PoolClient } from 'pg';
 import { PublicationDto, PublicationDtoType } from '../jcd-dto/publication-dto';
 import { JcdPressDto, JcdPressDtoType } from '../jcd-dto/jcd-press-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const JcdPress = {
   get: getJcdPress,
@@ -13,7 +13,7 @@ export const Publication = {
   insert: insertPublication,
 } as const;
 
-async function insertJcdPress(client: PoolClient, opts: {
+async function insertJcdPress(client: DbClient, opts: {
   jcd_project_id: number;
   publication_id: number;
   link_text: string;
@@ -48,7 +48,7 @@ async function insertJcdPress(client: PoolClient, opts: {
   return jcdPressDto;
 }
 
-async function getJcdPress(client: PoolClient, opts: {
+async function getJcdPress(client: DbClient, opts: {
   jcd_project_id: number;
   publication_id: number;
 }): Promise<JcdPressDtoType | undefined> {
@@ -73,7 +73,7 @@ async function getJcdPress(client: PoolClient, opts: {
   return jcdPressDto;
 }
 
-async function getPublicationByName(client: PoolClient, opts: {
+async function getPublicationByName(client: DbClient, opts: {
   name: string;
 }): Promise<PublicationDtoType | undefined> {
   let queryStr = `
@@ -90,7 +90,7 @@ async function getPublicationByName(client: PoolClient, opts: {
   return publicationDto;
 }
 
-async function insertPublication(client: PoolClient, opts: {
+async function insertPublication(client: DbClient, opts: {
   name: string;
 }): Promise<PublicationDtoType> {
   let queryStr = `

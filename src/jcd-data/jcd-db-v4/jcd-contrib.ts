@@ -1,6 +1,7 @@
-import { PoolClient } from 'pg';
+
 import { PersonDto, PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDto, OrgDtoType } from '../jcd-dto/org-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 // type JcdContrib<T extends (PersonDtoType | OrgDtoType)> = {
 //   getByName: (client: PoolClient, name: string) => Promise<T | undefined>
@@ -19,7 +20,7 @@ export const Org = {
 } as const;
 
 async function getPersonByName(
-  client: PoolClient,
+  client: DbClient,
   name: string,
 ): Promise<PersonDtoType | undefined> {
   let queryStr = `
@@ -35,7 +36,7 @@ async function getPersonByName(
   return PersonDto.deserialize(res.rows[0]);
 }
 
-async function insertPerson(client: PoolClient, opts: {
+async function insertPerson(client: DbClient, opts: {
   name: string;
 }): Promise<PersonDtoType> {
   let queryStr = `
@@ -51,7 +52,7 @@ async function insertPerson(client: PoolClient, opts: {
 }
 
 async function getOrgByName(
-  client: PoolClient,
+  client: DbClient,
   name: string,
 ): Promise<OrgDtoType | undefined> {
   let queryStr = `
@@ -68,7 +69,7 @@ async function getOrgByName(
   return orgDto;
 }
 
-async function insertOrg(client: PoolClient, opts: {
+async function insertOrg(client: DbClient, opts: {
   name: string;
 }): Promise<OrgDtoType> {
   let queryStr = `

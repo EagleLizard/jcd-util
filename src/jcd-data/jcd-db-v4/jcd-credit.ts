@@ -1,8 +1,9 @@
-import { PoolClient } from 'pg';
+
 import { JcdCreditDto, JcdCreditDtoType } from '../jcd-dto/jcd-credit-dto';
 import { PersonDto, PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDto, OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdCreditContribDto, JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const JcdCredit = {
   get: getJcdCredit,
@@ -14,7 +15,7 @@ export const JcdCreditContrib = {
   insert: insertJcdCreditContrib,
 } as const;
 
-async function getJcdCredit(client: PoolClient, opts: {
+async function getJcdCredit(client: DbClient, opts: {
   label: string;
   jcd_project_id: number;
 }): Promise<JcdCreditDtoType | undefined> {
@@ -34,7 +35,7 @@ async function getJcdCredit(client: PoolClient, opts: {
   return jcdCreditDto;
 }
 
-async function insertJcdCredit(client: PoolClient, opts: {
+async function insertJcdCredit(client: DbClient, opts: {
   label: string;
   jcd_project_id: number;
 }): Promise<JcdCreditDtoType> {
@@ -62,7 +63,7 @@ async function insertJcdCredit(client: PoolClient, opts: {
   ~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-async function getJcdCreditContrib(client: PoolClient, opts: {
+async function getJcdCreditContrib(client: DbClient, opts: {
   jcd_credit_id: number;
   jcdContribDto: PersonDtoType | OrgDtoType
 }): Promise<JcdCreditContribDtoType | undefined> {
@@ -84,7 +85,7 @@ async function getJcdCreditContrib(client: PoolClient, opts: {
   return jcdCreditContribDto;
 }
 
-async function getJcdCreditPersonContrib(client: PoolClient, opts: {
+async function getJcdCreditPersonContrib(client: DbClient, opts: {
   jcd_credit_id: number;
   jcdContribDto: PersonDtoType;
 }): Promise<JcdCreditContribDtoType | undefined> {
@@ -107,7 +108,7 @@ async function getJcdCreditPersonContrib(client: PoolClient, opts: {
   return jcdCreditContribDto;
 }
 
-async function getJcdCreditOrgContrib(client: PoolClient, opts: {
+async function getJcdCreditOrgContrib(client: DbClient, opts: {
   jcd_credit_id: number;
   jcdContribDto: OrgDtoType;
 }): Promise<JcdCreditContribDtoType | undefined> {
@@ -130,7 +131,7 @@ async function getJcdCreditOrgContrib(client: PoolClient, opts: {
   return jcdCreditContribDto;
 }
 
-async function insertJcdCreditContrib(client: PoolClient, opts: {
+async function insertJcdCreditContrib(client: DbClient, opts: {
   jcd_credit_id: number;
   jcdContribDto: PersonDtoType | OrgDtoType;
 }): Promise<JcdCreditContribDtoType> {
@@ -152,7 +153,7 @@ async function insertJcdCreditContrib(client: PoolClient, opts: {
   return jcdCreditContribDto;
 }
 
-async function insertJcdCreditPersonContrib(client: PoolClient, opts: {
+async function insertJcdCreditPersonContrib(client: DbClient, opts: {
   jcd_credit_id: number;
   jcdContribDto: PersonDtoType;
 }): Promise<JcdCreditContribDtoType> {
@@ -174,7 +175,7 @@ async function insertJcdCreditPersonContrib(client: PoolClient, opts: {
   return jcdCreditContribDto;
 }
 
-async function insertJcdCreditOrgContrib(client: PoolClient, opts: {
+async function insertJcdCreditOrgContrib(client: DbClient, opts: {
   jcd_credit_id: number;
   jcdContribDto: OrgDtoType;
 }): Promise<JcdCreditContribDtoType> {

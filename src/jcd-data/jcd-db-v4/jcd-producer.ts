@@ -1,14 +1,15 @@
-import { PoolClient } from 'pg';
+
 import { JcdProducerDto, JcdProducerDtoType } from '../jcd-dto/jcd-producer-dto';
 import { PersonDto, PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDto, OrgDtoType } from '../jcd-dto/org-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const JcdProducer = {
   get: getJcdProducer,
   insert: insertJcdProducer,
 } as const;
 
-function insertJcdProducer(client: PoolClient, opts: {
+function insertJcdProducer(client: DbClient, opts: {
   jcd_project_id: number;
   jcdContribDto: PersonDtoType | OrgDtoType;
 }): Promise<JcdProducerDtoType> {
@@ -31,7 +32,7 @@ function insertJcdProducer(client: PoolClient, opts: {
   throw new Error('Invalid insert into jcd_producer');
 }
 
-async function insertJcdPersonProducer(client: PoolClient, opts: {
+async function insertJcdPersonProducer(client: DbClient, opts: {
   jcd_project_id: number;
   jcdContribDto: PersonDtoType;
 }): Promise<JcdProducerDtoType> {
@@ -53,7 +54,7 @@ async function insertJcdPersonProducer(client: PoolClient, opts: {
   return jcdProducerDto;
 }
 
-async function insertJcdOrgProducer(client: PoolClient, opts: {
+async function insertJcdOrgProducer(client: DbClient, opts: {
   jcd_project_id: number;
   jcdContribDto: OrgDtoType;
 }): Promise<JcdProducerDtoType> {
@@ -75,7 +76,7 @@ async function insertJcdOrgProducer(client: PoolClient, opts: {
   return jcdProducerDto;
 }
 
-async function getJcdProducer(client: PoolClient, opts: {
+async function getJcdProducer(client: DbClient, opts: {
   jcd_project_id: number;
   jcdContribDto: PersonDtoType | OrgDtoType;
 }): Promise<JcdProducerDtoType | undefined> {
@@ -99,7 +100,7 @@ async function getJcdProducer(client: PoolClient, opts: {
   return jcdProducerDto;
 }
 
-async function getJcdPersonProducer(client: PoolClient, opts: {
+async function getJcdPersonProducer(client: DbClient, opts: {
   jcd_project_id: number;
   jcdCondtribDto: PersonDtoType;
 }): Promise<JcdProducerDtoType | undefined> {
@@ -124,7 +125,7 @@ async function getJcdPersonProducer(client: PoolClient, opts: {
   return jcdProducerDto;
 }
 
-async function getJcdOrgProducer(client: PoolClient, opts: {
+async function getJcdOrgProducer(client: DbClient, opts: {
   jcd_project_id: number;
   jcdCondtribDto: OrgDtoType;
 }): Promise<JcdProducerDtoType | undefined> {

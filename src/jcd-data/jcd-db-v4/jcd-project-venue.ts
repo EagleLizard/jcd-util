@@ -1,7 +1,7 @@
 
-import { PoolClient } from 'pg';
 import { JcdProjectVenueDto, JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
 import { VenueDto, VenueDtoType } from '../jcd-dto/venue-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const Venue = {
   getByName: getVenueByName,
@@ -13,7 +13,7 @@ export const JcdProjectVenue = {
   insert: insertJcdProjectVenue,
 } as const;
 
-async function getVenueByName(client: PoolClient, opts: {
+async function getVenueByName(client: DbClient, opts: {
   name: string;
 }): Promise<VenueDtoType | undefined> {
   let queryStr = `
@@ -30,7 +30,7 @@ async function getVenueByName(client: PoolClient, opts: {
   return venueDto;
 }
 
-async function insertVenue(client: PoolClient, opts: {
+async function insertVenue(client: DbClient, opts: {
   name: string;
 }): Promise<VenueDtoType> {
   let queryStr = `
@@ -45,7 +45,7 @@ async function insertVenue(client: PoolClient, opts: {
   return venueDto;
 }
 
-async function getJcdProjectVenue(client: PoolClient, opts: {
+async function getJcdProjectVenue(client: DbClient, opts: {
   jcd_project_id: number;
   venue_id: number;
 }): Promise<JcdProjectVenueDtoType | undefined> {
@@ -70,7 +70,7 @@ async function getJcdProjectVenue(client: PoolClient, opts: {
   return jcdProjectVenueDto;
 }
 
-async function insertJcdProjectVenue(client: PoolClient, opts: {
+async function insertJcdProjectVenue(client: DbClient, opts: {
   jcd_project_id: number;
   venue_id: number;
 }): Promise<JcdProjectVenueDtoType> {

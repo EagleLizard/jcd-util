@@ -1,9 +1,7 @@
 
 import assert from 'assert';
 
-import { type PoolClient } from 'pg';
-
-import { PgClient } from '../../lib/postgres-client';
+import { DbClient, PgClient } from '../../lib/postgres-client';
 import { Timer } from '../../util/timer';
 import {
   JcdContribDef,
@@ -100,7 +98,7 @@ async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
   });
 }
 
-async function upsertJcdImages(client: PoolClient, opts: {
+async function upsertJcdImages(client: DbClient, opts: {
   jcd_project_id: number;
   jcdImageDefs: JcdImageDef[];
 }): Promise<JcdProjectImageDtoType[]> {
@@ -118,7 +116,7 @@ async function upsertJcdImages(client: PoolClient, opts: {
   return jcdProjectImageDtos;
 }
 
-async function upsertJcdImage(client: PoolClient, opts: {
+async function upsertJcdImage(client: DbClient, opts: {
   jcd_project_id: number;
   imageDef: JcdImageDef;
 }) {
@@ -158,7 +156,7 @@ function imageDtoKindFromDef(def: JcdImageDef): JcdProjectImageDtoType['kind'] {
   }
 }
 
-async function upsertJcdVenue(client: PoolClient, opts: {
+async function upsertJcdVenue(client: DbClient, opts: {
   jcd_project_id: number;
   name: string;
 }): Promise<JcdProjectVenueDtoType> {
@@ -183,7 +181,7 @@ async function upsertJcdVenue(client: PoolClient, opts: {
   return jcdProjectVenueDto;
 }
 
-async function upsertJcdPress(client: PoolClient, opts: {
+async function upsertJcdPress(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
 }): Promise<JcdPressDtoType[]> {
@@ -235,7 +233,7 @@ function assertJcdPressUpserts(
   }
 }
 
-async function upsertJcdProducers(client: PoolClient, opts: {
+async function upsertJcdProducers(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
 }): Promise<JcdProducerDtoType[]> {
@@ -262,7 +260,7 @@ async function upsertJcdProducers(client: PoolClient, opts: {
   return jcdProducerDtos;
 }
 
-async function upsertJcdProdCredits(client: PoolClient, opts: {
+async function upsertJcdProdCredits(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
 }): Promise<JcdProdCreditDtoType[]> {
@@ -313,7 +311,7 @@ function assertJcdProdCreditUpsert(
   });
 }
 
-async function upsertJcdCredits(client: PoolClient, opts: {
+async function upsertJcdCredits(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
 }): Promise<JcdCreditDtoType[]> {
@@ -364,7 +362,7 @@ function assertJcdCreditUpsert(
   });
 }
 
-async function upsertJcdCreditContrib(client: PoolClient, opts: {
+async function upsertJcdCreditContrib(client: DbClient, opts: {
   jcdCreditDto: JcdCreditDtoType;
   jcdContribDto: PersonDtoType | OrgDtoType;
 }): Promise<JcdCreditContribDtoType> {
@@ -382,7 +380,7 @@ async function upsertJcdCreditContrib(client: PoolClient, opts: {
   return jcdCreditContribDto;
 }
 
-async function upsertJcdCredit(client: PoolClient, opts: {
+async function upsertJcdCredit(client: DbClient, opts: {
   creditDef: JcdCreditDef,
   jcd_project_id: number,
 }): Promise<JcdCreditDtoType> {
@@ -404,7 +402,7 @@ async function upsertJcdCredit(client: PoolClient, opts: {
   return jcdCreditDto;
 }
 
-async function upsertContrib(client: PoolClient, opts: {
+async function upsertContrib(client: DbClient, opts: {
   contribDef: JcdContribDef,
 }): Promise<PersonDtoType | OrgDtoType> {
   let contribDto: PersonDtoType | OrgDtoType;
@@ -425,7 +423,7 @@ async function upsertContrib(client: PoolClient, opts: {
   return contribDto;
 }
 
-async function upsertPerson(client: PoolClient, opts: {
+async function upsertPerson(client: DbClient, opts: {
   name: string,
 }): Promise<PersonDtoType> {
   let personDto = await Person.getByName(client, opts.name);
@@ -436,7 +434,7 @@ async function upsertPerson(client: PoolClient, opts: {
   return personDto;
 }
 
-async function upsertOrg(client: PoolClient, opts: {
+async function upsertOrg(client: DbClient, opts: {
   name: string;
 }): Promise<OrgDtoType> {
   let orgDto = await Org.getByName(client, opts.name);
@@ -447,7 +445,7 @@ async function upsertOrg(client: PoolClient, opts: {
   return orgDto;
 }
 
-async function upsertJcdProjectDesc(client: PoolClient, opts: {
+async function upsertJcdProjectDesc(client: DbClient, opts: {
   jcd_project_id: number,
   description_id: number,
 }): Promise<JcdProjectDescDto> {
@@ -462,7 +460,7 @@ async function upsertJcdProjectDesc(client: PoolClient, opts: {
   return jcdProjDescDto;
 }
 
-async function upsertProjectDesc(client: PoolClient, opts: {
+async function upsertProjectDesc(client: DbClient, opts: {
   text: string;
   jcd_project_id: number;
 }): Promise<DescriptionDto> {
@@ -479,7 +477,7 @@ async function upsertProjectDesc(client: PoolClient, opts: {
   return descDto;
 }
 
-async function upsertProject(client: PoolClient, jcdProjectDef: JcdProjectDef): Promise<JcdProjectDtoType> {
+async function upsertProject(client: DbClient, jcdProjectDef: JcdProjectDef): Promise<JcdProjectDtoType> {
   let jcdProjectDto: JcdProjectDtoType | undefined;
   jcdProjectDto = await JcdProject.getByKey(client, jcdProjectDef.project_key);
   if(jcdProjectDto !== undefined) {

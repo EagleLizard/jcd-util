@@ -1,13 +1,14 @@
-import { PoolClient } from 'pg';
+
 import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
 import { DescriptionDto } from '../jcd-dto/description-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const Description = {
   getByText: getDescriptionByText,
   insert: insertDescription,
 } as const;
 
-async function insertDescription(client: PoolClient, opts: {
+async function insertDescription(client: DbClient, opts: {
   text: string,
 }): Promise<DescriptionDto> {
   let queryStr = `
@@ -22,7 +23,7 @@ async function insertDescription(client: PoolClient, opts: {
   return descDto;
 }
 
-async function getDescriptionByText(client: PoolClient, opts: {
+async function getDescriptionByText(client: DbClient, opts: {
   text: string;
   jcd_project_id: number;
 }): Promise<DescriptionDto | undefined> {
@@ -47,7 +48,7 @@ export const JcdProjectDesc = {
   insert: insertJcdProjectDesc,
 } as const;
 
-async function insertJcdProjectDesc(client: PoolClient, opts: {
+async function insertJcdProjectDesc(client: DbClient, opts: {
   jcd_project_id: number;
   description_id: number;
 }): Promise<JcdProjectDescDto> {
@@ -69,7 +70,7 @@ async function insertJcdProjectDesc(client: PoolClient, opts: {
   return jcdProjDescDto;
 }
 
-async function getJcdProjectDesc(client: PoolClient, opts: {
+async function getJcdProjectDesc(client: DbClient, opts: {
   jcd_project_id: number,
   description_id: number,
 }): Promise<JcdProjectDescDto | undefined> {

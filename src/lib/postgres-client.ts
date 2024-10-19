@@ -10,16 +10,22 @@ const pgPool = new Pool({
   password: config.POSTGRES_PASSWORD,
   database: config.POSTGRES_DB,
 });
-export  class PgClient {
+
+export type DbClient = {
+  query<T extends any[], V extends any[]>(query: string | QueryConfig<T[]>, values?: V): Promise<QueryResult>;
+};
+
+export class PgClient {
   private static async getClient() {
     const client = await pgPool.connect();
     return client;
   }
 
   static async query<T extends any[], V extends any[]>(query: string | QueryConfig<T[]>, values?: V): Promise<QueryResult> {
-    let client = await PgClient.getClient();
-    let queryRes = await client.query(query, values);
-    client.release();
+    // let client = await PgClient.getClient();
+    // let queryRes = await client.query(query, values);
+    // client.release();
+    let queryRes = await pgPool.query(query, values);
     return queryRes;
   }
 

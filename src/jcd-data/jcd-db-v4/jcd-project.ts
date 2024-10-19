@@ -1,6 +1,7 @@
-import { PoolClient } from 'pg';
+
 import { JcdProjectDef } from './jcd-v4-projects';
 import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
+import { DbClient } from '../../lib/postgres-client';
 
 export const JcdProject = {
   getByKey: getProjectByKey,
@@ -8,7 +9,7 @@ export const JcdProject = {
 } as const;
 
 async function insertProject(
-  client: PoolClient,
+  client: DbClient,
   jcdProjectDef: JcdProjectDef
 ): Promise<JcdProjectDtoType> {
   let colNames = [
@@ -34,7 +35,7 @@ async function insertProject(
   return jcdProjectDto;
 }
 
-async function getProjectByKey(client: PoolClient, projectKey: string) {
+async function getProjectByKey(client: DbClient, projectKey: string) {
   let res = await client.query(`
     SELECT * FROM jcd_project jp
       WHERE jp.project_key = $1
