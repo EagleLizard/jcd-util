@@ -41,18 +41,34 @@ export async function jcdDbV4Main() {
   console.log(projects.map(proj => proj.project_key));
 
   let timer = Timer.start();
-  for(let i = 0; i < projects.length; ++i) {
+
+  let projPromises = projects.map(proj => {
+    return upsertProject(PgClient, proj);
+  });
+  let projectDtos = await Promise.all(projPromises);
+  for(let i = 0; i < projectDtos.length; ++i) {
+    let jcdProjectDto = projectDtos[i];
     let currProject = projects[i];
-    await upsertProjectDef(currProject);
+    await upsertProjectDef({
+      jcdProjectDef: currProject,
+      jcdProjectDto,
+    });
   }
   await PgClient.end();
+
   let elapsedMs = timer.stop();
   console.log(`upserted ${projects.length} in ${elapsedMs} ms`);
 }
 
-async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
+async function upsertProjectDef(opts: {
+  jcdProjectDef: JcdProjectDef,
+  jcdProjectDto: JcdProjectDtoType
+}) {
+  const {
+    jcdProjectDef,
+    jcdProjectDto,
+  } = opts;
   console.log(`\n${jcdProjectDef.project_key}`);
-  let jcdProjectDto = await upsertProject(PgClient, jcdProjectDef);
 
   let descDto = await upsertProjectDesc(PgClient, {
     text: jcdProjectDef.description.join('\n'),
