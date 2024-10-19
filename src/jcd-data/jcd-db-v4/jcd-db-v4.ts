@@ -3,7 +3,7 @@ import assert from 'assert';
 
 import { type PoolClient } from 'pg';
 
-import { PostgresClient } from '../../lib/postgres-client';
+import { PgClient } from '../../lib/postgres-client';
 import { Timer } from '../../util/timer';
 import {
   JcdContribDef,
@@ -46,14 +46,14 @@ export async function jcdDbV4Main() {
     let currProject = projects[i];
     await upsertProjectDef(currProject);
   }
-  await PostgresClient.end();
+  await PgClient.end();
   let elapsedMs = timer.stop();
   console.log(`upserted ${projects.length} in ${elapsedMs} ms`);
 }
 
 async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
   console.log(`\n${jcdProjectDef.project_key}`);
-  await PostgresClient.transact(async (pgClient) => {
+  await PgClient.transact(async (pgClient) => {
     let jcdProjectDto = await upsertProject(pgClient, jcdProjectDef);
 
     let descDto = await upsertProjectDesc(pgClient, {
