@@ -65,12 +65,12 @@ export type JcdCreditDef = {
   contribs: JcdContribDef[];
 };
 // type CreditDef = [ label: string, contribs: ContribDef[] ];
-type PressDef = {
+export type PressDef = {
   publication: string;
   description?: string;
   link: LinkDef;
 };
-type LinkDef = {
+export type LinkDef = {
   label: string;
   url: string;
 };

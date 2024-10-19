@@ -9,6 +9,7 @@ import {
   JcdImageDef,
   JcdProjectDef,
   JcdV4Projects,
+  PressDef,
 } from './jcd-v4-projects';
 import { JcdProducer } from './jcd-producer';
 import { JcdProdCredit, JcdProdCreditContrib } from './jcd-prod-credit';
@@ -51,50 +52,48 @@ export async function jcdDbV4Main() {
 
 async function upsertProjectDef(jcdProjectDef: JcdProjectDef) {
   console.log(`\n${jcdProjectDef.project_key}`);
-  await PgClient.transact(async (pgClient) => {
-    let jcdProjectDto = await upsertProject(pgClient, jcdProjectDef);
+  let jcdProjectDto = await upsertProject(PgClient, jcdProjectDef);
 
-    let descDto = await upsertProjectDesc(pgClient, {
-      text: jcdProjectDef.description.join('\n'),
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-    });
+  let descDto = await upsertProjectDesc(PgClient, {
+    text: jcdProjectDef.description.join('\n'),
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
 
-    let jcdProjDescDto = await upsertJcdProjectDesc(pgClient, {
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-      description_id: descDto.description_id,
-    });
+  let jcdProjDescDto = await upsertJcdProjectDesc(PgClient, {
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+    description_id: descDto.description_id,
+  });
 
-    let jcdProjVenueDto = await upsertJcdVenue(pgClient, {
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-      name: jcdProjectDef.venue,
-    });
+  let jcdProjVenueDto = await upsertJcdVenue(PgClient, {
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+    name: jcdProjectDef.venue,
+  });
 
-    console.log([
-      jcdProjectDto.jcd_project_id,
-      jcdProjDescDto.jcd_project_description_id,
-      jcdProjVenueDto.venue_id,
-    ]);
+  console.log([
+    jcdProjectDto.jcd_project_id,
+    jcdProjDescDto.jcd_project_description_id,
+    jcdProjVenueDto.venue_id,
+  ]);
 
-    await upsertJcdCredits(pgClient, {
-      jcdProjectDef,
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-    });
-    await upsertJcdProdCredits(pgClient, {
-      jcdProjectDef,
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-    });
-    await upsertJcdProducers(pgClient, {
-      jcdProjectDef,
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-    });
-    await upsertJcdPress(pgClient, {
-      jcdProjectDef,
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-    });
-    await upsertJcdImages(pgClient, {
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-      jcdImageDefs: jcdProjectDef.images,
-    });
+  await upsertJcdCredits(PgClient, {
+    jcdProjectDef,
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
+  await upsertJcdProdCredits(PgClient, {
+    jcdProjectDef,
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
+  await upsertJcdProducers(PgClient, {
+    jcdProjectDef,
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
+  await upsertJcdPress(PgClient, {
+    jcdProjectDef,
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
+  await upsertJcdImages(PgClient, {
+    jcd_project_id: jcdProjectDto.jcd_project_id,
+    jcdImageDefs: jcdProjectDef.images,
   });
 }
 
@@ -189,28 +188,11 @@ async function upsertJcdPress(client: DbClient, opts: {
   let publicationDtos: PublicationDtoType[] = [];
   for(let i = 0; i < opts.jcdProjectDef.press.length; ++i) {
     let currPressDef = opts.jcdProjectDef.press[i];
-    let publicationDto = await Publication.getByName(client, {
-      name: currPressDef.publication,
-    });
-    if(publicationDto === undefined) {
-      publicationDto = await Publication.insert(client, {
-        name: currPressDef.publication,
-      });
-    }
-    publicationDtos.push(publicationDto);
-    let jcdPressDto = await JcdPress.get(client, {
+    let [ publicationDto, jcdPressDto ] = await upsertJcdPressItem(client, {
       jcd_project_id: opts.jcd_project_id,
-      publication_id: publicationDto.publication_id,
+      pressDef: currPressDef,
     });
-    if(jcdPressDto === undefined) {
-      jcdPressDto = await JcdPress.insert(client, {
-        jcd_project_id: opts.jcd_project_id,
-        publication_id: publicationDto.publication_id,
-        link_text: currPressDef.link.label,
-        link_url: currPressDef.link.url,
-        description: currPressDef.description,
-      });
-    }
+    publicationDtos.push(publicationDto);
     jcdPressDtos.push(jcdPressDto);
   }
   /*
@@ -233,6 +215,43 @@ function assertJcdPressUpserts(
   }
 }
 
+async function upsertJcdPressItem(client: DbClient, opts: {
+  jcd_project_id: number;
+  pressDef: PressDef;
+}): Promise<[PublicationDtoType, JcdPressDtoType]> {
+  let publicationDto = await upsertPublication(client, {
+    name: opts.pressDef.publication,
+  });
+  let jcdPressDto = await JcdPress.get(client, {
+    jcd_project_id: opts.jcd_project_id,
+    publication_id: publicationDto.publication_id,
+  });
+  if(jcdPressDto === undefined) {
+    jcdPressDto = await JcdPress.insert(client, {
+      jcd_project_id: opts.jcd_project_id,
+      publication_id: publicationDto.publication_id,
+      link_text: opts.pressDef.link.label,
+      link_url: opts.pressDef.link.url,
+      description: opts.pressDef.description,
+    });
+  }
+  return [ publicationDto, jcdPressDto ];
+}
+
+async function upsertPublication(client: DbClient, opts: {
+  name: string;
+}): Promise<PublicationDtoType> {
+  let publicationDto = await Publication.getByName(client, {
+    name: opts.name,
+  });
+  if(publicationDto === undefined) {
+    publicationDto = await Publication.insert(client, {
+      name: opts.name,
+    });
+  }
+  return publicationDto;
+}
+
 async function upsertJcdProducers(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
@@ -241,23 +260,34 @@ async function upsertJcdProducers(client: DbClient, opts: {
 
   for(let i = 0; i < opts.jcdProjectDef.producer.length; ++i) {
     let currProducerDef = opts.jcdProjectDef.producer[i];
-    let contribDto = await upsertContrib(client, {
-      contribDef: currProducerDef,
-    });
-    let jcdProducerDto = await JcdProducer.get(client, {
+    let jcdProducerDto = await upsertJcdProducer(client, {
       jcd_project_id: opts.jcd_project_id,
-      jcdContribDto: contribDto,
+      producerDef: currProducerDef,
     });
-    if(jcdProducerDto === undefined) {
-      jcdProducerDto = await JcdProducer.insert(client, {
-        jcd_project_id: opts.jcd_project_id,
-        jcdContribDto: contribDto,
-      });
-    }
     jcdProducerDtos.push(jcdProducerDto);
   }
 
   return jcdProducerDtos;
+}
+
+async function upsertJcdProducer(client: DbClient, opts: {
+  jcd_project_id: number;
+  producerDef: JcdContribDef;
+}): Promise<JcdProducerDtoType> {
+  let contribDto = await upsertContrib(client, {
+    contribDef: opts.producerDef,
+  });
+  let jcdProducerDto = await JcdProducer.get(client, {
+    jcd_project_id: opts.jcd_project_id,
+    jcdContribDto: contribDto,
+  });
+  if(jcdProducerDto === undefined) {
+    jcdProducerDto = await JcdProducer.insert(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcdContribDto: contribDto,
+    });
+  }
+  return jcdProducerDto;
 }
 
 async function upsertJcdProdCredits(client: DbClient, opts: {
@@ -267,28 +297,39 @@ async function upsertJcdProdCredits(client: DbClient, opts: {
   let jcdProdCredits: JcdProdCreditDtoType[] = [];
   for(let i = 0; i < opts.jcdProjectDef.prod_credits.length; ++i) {
     let currCreditDef = opts.jcdProjectDef.prod_credits[i];
-    let currCreditDto = await JcdProdCredit.upsert(client, {
+    let currCreditDto = await upsertJcdProdCredit(client, {
       jcd_project_id: opts.jcd_project_id,
-      jcdCreditDef: currCreditDef,
+      creditDef: currCreditDef,
     });
     jcdProdCredits.push(currCreditDto);
-    let contribDtos: (PersonDtoType | OrgDtoType)[] = [];
-    let jcdProdCreditContribDtos: JcdProdCreditContribDtoType[] = [];
-    for(let k = 0; k < currCreditDef.contribs.length; ++k) {
-      let currContribDef = currCreditDef.contribs[k];
-      let currContribDto = await upsertContrib(client, {
-        contribDef: currContribDef,
-      });
-      contribDtos.push(currContribDto);
-      let jcdProdCreditContribDto = await JcdProdCreditContrib.upsert(client, {
-        jcdProdCreditDto: currCreditDto,
-        jcdContribDto: currContribDto,
-      });
-      jcdProdCreditContribDtos.push(jcdProdCreditContribDto);
-    }
-    assertJcdProdCreditUpsert(contribDtos, jcdProdCreditContribDtos, currCreditDto);
   }
   return jcdProdCredits;
+}
+
+async function upsertJcdProdCredit(client: DbClient, opts: {
+  jcd_project_id: number;
+  creditDef: JcdCreditDef;
+}): Promise<JcdProdCreditDtoType> {
+  let currCreditDto = await JcdProdCredit.upsert(client, {
+    jcd_project_id: opts.jcd_project_id,
+    jcdCreditDef: opts.creditDef,
+  });
+  let contribDtos: (PersonDtoType | OrgDtoType)[] = [];
+  let creditContribDtos: JcdProdCreditContribDtoType[] = [];
+  for(let i  = 0; i < opts.creditDef.contribs.length; ++i) {
+    let currContribDef = opts.creditDef.contribs[i];
+    let currContribDto = await upsertContrib(client, {
+      contribDef: currContribDef,
+    });
+    contribDtos.push(currContribDto);
+    let jcdProdCreditContribDto = await JcdProdCreditContrib.upsert(client, {
+      jcdProdCreditDto: currCreditDto,
+      jcdContribDto: currContribDto,
+    });
+    creditContribDtos.push(jcdProdCreditContribDto);
+  }
+  assertJcdProdCreditUpsert(contribDtos, creditContribDtos, currCreditDto);
+  return currCreditDto;
 }
 
 function assertJcdProdCreditUpsert(
