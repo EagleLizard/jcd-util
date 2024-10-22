@@ -35,9 +35,8 @@ import { JcdProjectVenue, Venue } from './jcd-project-venue';
 import { JcdProjectImageDtoType } from '../jcd-dto/jcd-project-image-dto';
 import { JcdImage, JcdProjectImage } from './jcd-image';
 import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
-import { JcdProjectSortDto, JcdProjectSortDtoType } from '../jcd-dto/jcd-project-sort-dto';
 import { JcdProjectSort } from './jcd-sort';
-import { JcdProjectSortKeyDto, JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
+import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -53,9 +52,10 @@ export async function jcdDbV4Main() {
   });
   let projectDtos = await Promise.all(projPromises);
 
-  await upsertProjectSorts(PgClient, {
-    jcdProjectDtos: projectDtos,
-    sortDefs: jcdProjectSortDefs,
+  await PgClient.transact(async (client) => {
+    await insertProjectSorts(client, {
+      sortDefs: jcdProjectSortDefs,
+    });
   });
 
   for(let i = 0; i < projectDtos.length; ++i) {
@@ -118,127 +118,58 @@ async function upsertProjectDef(opts: {
   });
 }
 
-async function upsertProjectSorts(client: DbClient, opts: {
+async function insertProjectSorts(client: DbClient, opts: {
   sortDefs: JcdProjectSortDef[];
 }) {
-  let jcdProjectSorts = await JcdProjectSort.getProjectSorts(client);
-  for(let i = 0; i < jcdProjectSorts.length; ++i) {
-    let currProjSort = jcdProjectSorts[i];
-    let foundSortDef = opts.sortDefs.find(sortDef => {
-      return currProjSort.project_key === sortDef[0];
-    });
-    if(foundSortDef === undefined) {
-      throw new Error(`no SortDef for key ${currProjSort.project_key} in DB`);
-    }
-  }
-
   /*
-    Only insert entries that are new. In other words, respect an entry
+    Only insert entries that are new. In other words, respect any entry
       that exists in the DB already.
     This is to protect against accidentally updating the sort order
       defined by the user if it exists already.
   _*/
   for(let i = 0; i < opts.sortDefs.length; ++i) {
     let currSortDef = opts.sortDefs[i];
-    let foundProjSort = jcdProjectSorts.find(projSort => {
+    let jcdProjectDto = await JcdProject.getByKey(client, currSortDef[0]);
+    if(jcdProjectDto === undefined) {
+      throw new Error(`attempted to insert SortDef for jcd_project not in DB, sortDef: ${currSortDef[0]}`);
+    }
+    let jcdProjectSorts = await JcdProjectSort.getProjectSorts(client);
+    let foundProjSortIdx = jcdProjectSorts.findIndex(projSort => {
       return currSortDef[0] === projSort.project_key;
     });
-    if(foundProjSort === undefined) {
-      console.log(`no entry in DB for SortDef with key ${currSortDef[0]}`);
-    }
-  }
-  let jcdProjectDtos = await JcdProject.getAll(client);
-  let sortsWithProject: JcdProjectSortDef[] = opts.sortDefs.filter(sortDef => {
-    let foundProj = jcdProjectDtos.find(proj => {
-      return sortDef[0] === proj.project_key;
-    });
-    return foundProj !== undefined;
-  })
-  let sortsToInsert: JcdProjectSortDef[] = [];
-  for(let i = 0; i < jcdProjectDtos.length; ++i) {
-    let currProjDto = jcdProjectDtos[i];
-    let foundDbSortDef = jcdProjectSorts.find(projSort => {
-      return currProjDto.project_key === projSort.project_key;
-    });
-    if(foundDbSortDef === undefined) {
-      let foundSortDefIdx = sortsWithProject.findIndex(sortDef => {
-        return currProjDto.project_key === sortDef[0];
-      });
-      if(foundSortDefIdx !== -1) {
-        console.log(sortsWithProject[foundSortDefIdx]);
-        let insertAfterProj = sortsWithProject[foundSortDefIdx - 1]?.[0];
-        let insertAfterEntry = jcdProjectSorts.find(projSort => {
-          return insertAfterProj === projSort.project_key;
+    if(foundProjSortIdx === -1) {
+      let prevSortDef: JcdProjectSortDef | undefined;
+      let insertAfterSortDto: JcdProjectSortKeyDtoType | undefined;
+      if((prevSortDef = opts.sortDefs[i - 1]) !== undefined) {
+        let insertAfterProjectSortIdx = jcdProjectSorts.findIndex(projSort => {
+          return prevSortDef?.[0] === projSort.project_key;
         });
-        console.log(`insertAfterEntry: ${insertAfterEntry?.project_key}`);
-        if(insertAfterEntry === undefined) {
-          await JcdProjectSort.insert(client, {
-            jcd_project_id: currProjDto.jcd_project_id,
-            sort_order: 1,
-          });
-        } else {
-          // insert at insertAfterEntry.sort_order+1
-        }
+        insertAfterSortDto = jcdProjectSorts[insertAfterProjectSortIdx];
       }
+      let insertSortOrder: number;
+      if(insertAfterSortDto === undefined) {
+        /*
+          No entries found before this one,
+            insert at beginning
+        _*/
+        insertSortOrder = 1;
+      } else {
+        /*
+          insert after found previous sort entry
+        _*/
+        insertSortOrder = insertAfterSortDto.sort_order + 1;
+      }
+      let insertOutStr = `inserting ${jcdProjectDto.project_key} at ${insertSortOrder}`;
+      if(insertAfterSortDto !== undefined) {
+        insertOutStr += ` after ${insertAfterSortDto.project_key}`;
+      }
+      console.log(insertOutStr);
+      await JcdProjectSort.insert(client, {
+        jcd_project_id: jcdProjectDto.jcd_project_id,
+        sort_order: insertSortOrder,
+      });
     }
   }
-  // console.log(opts.sortDefs.length);
-  // console.log(jcdProjectSorts.length);
-}
-
-async function _upsertProjectSorts(client: DbClient, opts: {
-  jcdProjectDtos: JcdProjectDtoType[];
-  sortDefs: JcdProjectSortDef[];
-}) {
-  let projectSortDtos: JcdProjectSortDtoType[] = [];
-  let sortDefs = opts.sortDefs.filter(sortDef => {
-    let foundProject = opts.jcdProjectDtos.find(proj => {
-      return proj.project_key === sortDef[0];
-    });
-    return foundProject !== undefined;
-  });
-  for(let i = 0; i < sortDefs.length; ++i) {
-    let sortDef = sortDefs[i];
-    let projectDto = opts.jcdProjectDtos.find(proj => {
-      return proj.project_key === sortDef[0];
-    });
-    if(projectDto === undefined) {
-      throw new Error(`Project not found for sortDef: ${sortDef[0]}`);
-    }
-    let projectSortDto = await upsertProjectSort(client, {
-      jcd_project_id: projectDto.jcd_project_id,
-      // sort_order: i,
-      sort_order: sortDef[1],
-    });
-    projectSortDtos.push(projectSortDto);
-  }
-  return projectSortDtos;
-}
-
-async function upsertProjectSort(client: DbClient, opts: {
-  jcd_project_id: number;
-  sort_order: number;
-}): Promise<JcdProjectSortDtoType> {
-  let jcdProjectSortDto = await JcdProjectSort.get(client, {
-    jcd_project_id: opts.jcd_project_id,
-  });
-
-  if(jcdProjectSortDto === undefined) {
-    jcdProjectSortDto = await JcdProjectSort.insert(client, {
-      jcd_project_id: opts.jcd_project_id,
-      sort_order: opts.sort_order,
-    });
-  } else if(jcdProjectSortDto.sort_order !== opts.sort_order) {
-    /*
-      update if fetched sort_order differs from target
-    _*/
-    jcdProjectSortDto = await JcdProjectSort.update(client, {
-      jcd_project_id: opts.jcd_project_id,
-      jcd_project_sort_id: jcdProjectSortDto.jcd_project_sort_id,
-      sort_order: opts.sort_order,
-    });
-  }
-  return jcdProjectSortDto;
 }
 
 async function upsertJcdImages(client: DbClient, opts: {
