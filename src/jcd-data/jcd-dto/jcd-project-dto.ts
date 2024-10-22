@@ -30,6 +30,7 @@ export type JcdProjectDtoType = Static<typeof JcdProjectDtoSchema>;
 
 const JcdProjectDto = {
   deserialize,
+  schema: JcdProjectDtoSchema,
 } as const;
 
 export {

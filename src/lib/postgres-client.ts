@@ -52,4 +52,12 @@ export class PgClient {
   static end() {
     return pgPool.end();
   }
+
+  static async checkTxn(client: DbClient) {
+    /*
+    see: https://dba.stackexchange.com/a/208375
+    _*/
+    let isTxn = !(await client.query('SELECT now() = statement_timestamp() as res')).rows[0]?.res;
+    return isTxn;
+  }
 }

@@ -4,9 +4,32 @@ import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { DbClient } from '../../lib/postgres-client';
 
 export const JcdProject = {
+  getAll: getJcdProjects,
+  getAllSorted: getSortedJcdProjects,
   getByKey: getProjectByKey,
   insert: insertProject,
 } as const;
+
+async function getJcdProjects(client: DbClient) {
+  let queryStr = `
+    SELECT * FROM jcd_project
+  `;
+  let res = await client.query(queryStr);
+  let jcdProjectDtos = res.rows.map(JcdProjectDto.deserialize);
+  return jcdProjectDtos;
+}
+
+async function getSortedJcdProjects(client: DbClient) {
+  let queryStr = `
+    SELECT jp.* FROM jcd_project jp
+      LEFT JOIN jcd_project_sort jps
+        ON jp.jcd_project_id = jps.jcd_project_id
+    ORDER BY jps.sort_order ASC
+  `;
+  let res = await client.query(queryStr);
+  let jcdProjectDtos = res.rows.map(JcdProjectDto.deserialize);
+  return jcdProjectDtos;
+}
 
 async function insertProject(
   client: DbClient,

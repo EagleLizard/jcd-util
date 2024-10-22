@@ -24,6 +24,7 @@ export type JcdProjectSortDtoType = Static<typeof JcdProjectSortDtoSchema>;
 
 export const JcdProjectSortDto = {
   deserialize,
+  schema: JcdProjectSortDtoSchema,
 } as const;
 
 function deserialize(val: unknown): JcdProjectSortDtoType {

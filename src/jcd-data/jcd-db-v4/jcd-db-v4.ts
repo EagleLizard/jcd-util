@@ -34,6 +34,10 @@ import { JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
 import { JcdProjectVenue, Venue } from './jcd-project-venue';
 import { JcdProjectImageDtoType } from '../jcd-dto/jcd-project-image-dto';
 import { JcdImage, JcdProjectImage } from './jcd-image';
+import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
+import { JcdProjectSortDto, JcdProjectSortDtoType } from '../jcd-dto/jcd-project-sort-dto';
+import { JcdProjectSort } from './jcd-sort';
+import { JcdProjectSortKeyDto, JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -42,10 +46,18 @@ export async function jcdDbV4Main() {
 
   let timer = Timer.start();
 
-  let projPromises = projects.map(proj => {
-    return upsertProject(PgClient, proj);
+  let projPromises = projects.map(projectDef => {
+    return upsertProject(PgClient, {
+      projectDef,
+    });
   });
   let projectDtos = await Promise.all(projPromises);
+
+  await upsertProjectSorts(PgClient, {
+    jcdProjectDtos: projectDtos,
+    sortDefs: jcdProjectSortDefs,
+  });
+
   for(let i = 0; i < projectDtos.length; ++i) {
     let jcdProjectDto = projectDtos[i];
     let currProject = projects[i];
@@ -68,28 +80,21 @@ async function upsertProjectDef(opts: {
     jcdProjectDef,
     jcdProjectDto,
   } = opts;
-  console.log(`\n${jcdProjectDef.project_key}`);
 
   let descDto = await upsertProjectDesc(PgClient, {
     text: jcdProjectDef.description.join('\n'),
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
 
-  let jcdProjDescDto = await upsertJcdProjectDesc(PgClient, {
+  await upsertJcdProjectDesc(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     description_id: descDto.description_id,
   });
 
-  let jcdProjVenueDto = await upsertJcdVenue(PgClient, {
+  await upsertJcdVenue(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     name: jcdProjectDef.venue,
   });
-
-  console.log([
-    jcdProjectDto.jcd_project_id,
-    jcdProjDescDto.jcd_project_description_id,
-    jcdProjVenueDto.venue_id,
-  ]);
 
   await upsertJcdCredits(PgClient, {
     jcdProjectDef,
@@ -111,6 +116,129 @@ async function upsertProjectDef(opts: {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     jcdImageDefs: jcdProjectDef.images,
   });
+}
+
+async function upsertProjectSorts(client: DbClient, opts: {
+  sortDefs: JcdProjectSortDef[];
+}) {
+  let jcdProjectSorts = await JcdProjectSort.getProjectSorts(client);
+  for(let i = 0; i < jcdProjectSorts.length; ++i) {
+    let currProjSort = jcdProjectSorts[i];
+    let foundSortDef = opts.sortDefs.find(sortDef => {
+      return currProjSort.project_key === sortDef[0];
+    });
+    if(foundSortDef === undefined) {
+      throw new Error(`no SortDef for key ${currProjSort.project_key} in DB`);
+    }
+  }
+
+  /*
+    Only insert entries that are new. In other words, respect an entry
+      that exists in the DB already.
+    This is to protect against accidentally updating the sort order
+      defined by the user if it exists already.
+  _*/
+  for(let i = 0; i < opts.sortDefs.length; ++i) {
+    let currSortDef = opts.sortDefs[i];
+    let foundProjSort = jcdProjectSorts.find(projSort => {
+      return currSortDef[0] === projSort.project_key;
+    });
+    if(foundProjSort === undefined) {
+      console.log(`no entry in DB for SortDef with key ${currSortDef[0]}`);
+    }
+  }
+  let jcdProjectDtos = await JcdProject.getAll(client);
+  let sortsWithProject: JcdProjectSortDef[] = opts.sortDefs.filter(sortDef => {
+    let foundProj = jcdProjectDtos.find(proj => {
+      return sortDef[0] === proj.project_key;
+    });
+    return foundProj !== undefined;
+  })
+  let sortsToInsert: JcdProjectSortDef[] = [];
+  for(let i = 0; i < jcdProjectDtos.length; ++i) {
+    let currProjDto = jcdProjectDtos[i];
+    let foundDbSortDef = jcdProjectSorts.find(projSort => {
+      return currProjDto.project_key === projSort.project_key;
+    });
+    if(foundDbSortDef === undefined) {
+      let foundSortDefIdx = sortsWithProject.findIndex(sortDef => {
+        return currProjDto.project_key === sortDef[0];
+      });
+      if(foundSortDefIdx !== -1) {
+        console.log(sortsWithProject[foundSortDefIdx]);
+        let insertAfterProj = sortsWithProject[foundSortDefIdx - 1]?.[0];
+        let insertAfterEntry = jcdProjectSorts.find(projSort => {
+          return insertAfterProj === projSort.project_key;
+        });
+        console.log(`insertAfterEntry: ${insertAfterEntry?.project_key}`);
+        if(insertAfterEntry === undefined) {
+          await JcdProjectSort.insert(client, {
+            jcd_project_id: currProjDto.jcd_project_id,
+            sort_order: 1,
+          });
+        } else {
+          // insert at insertAfterEntry.sort_order+1
+        }
+      }
+    }
+  }
+  // console.log(opts.sortDefs.length);
+  // console.log(jcdProjectSorts.length);
+}
+
+async function _upsertProjectSorts(client: DbClient, opts: {
+  jcdProjectDtos: JcdProjectDtoType[];
+  sortDefs: JcdProjectSortDef[];
+}) {
+  let projectSortDtos: JcdProjectSortDtoType[] = [];
+  let sortDefs = opts.sortDefs.filter(sortDef => {
+    let foundProject = opts.jcdProjectDtos.find(proj => {
+      return proj.project_key === sortDef[0];
+    });
+    return foundProject !== undefined;
+  });
+  for(let i = 0; i < sortDefs.length; ++i) {
+    let sortDef = sortDefs[i];
+    let projectDto = opts.jcdProjectDtos.find(proj => {
+      return proj.project_key === sortDef[0];
+    });
+    if(projectDto === undefined) {
+      throw new Error(`Project not found for sortDef: ${sortDef[0]}`);
+    }
+    let projectSortDto = await upsertProjectSort(client, {
+      jcd_project_id: projectDto.jcd_project_id,
+      // sort_order: i,
+      sort_order: sortDef[1],
+    });
+    projectSortDtos.push(projectSortDto);
+  }
+  return projectSortDtos;
+}
+
+async function upsertProjectSort(client: DbClient, opts: {
+  jcd_project_id: number;
+  sort_order: number;
+}): Promise<JcdProjectSortDtoType> {
+  let jcdProjectSortDto = await JcdProjectSort.get(client, {
+    jcd_project_id: opts.jcd_project_id,
+  });
+
+  if(jcdProjectSortDto === undefined) {
+    jcdProjectSortDto = await JcdProjectSort.insert(client, {
+      jcd_project_id: opts.jcd_project_id,
+      sort_order: opts.sort_order,
+    });
+  } else if(jcdProjectSortDto.sort_order !== opts.sort_order) {
+    /*
+      update if fetched sort_order differs from target
+    _*/
+    jcdProjectSortDto = await JcdProjectSort.update(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcd_project_sort_id: jcdProjectSortDto.jcd_project_sort_id,
+      sort_order: opts.sort_order,
+    });
+  }
+  return jcdProjectSortDto;
 }
 
 async function upsertJcdImages(client: DbClient, opts: {
@@ -534,12 +662,14 @@ async function upsertProjectDesc(client: DbClient, opts: {
   return descDto;
 }
 
-async function upsertProject(client: DbClient, jcdProjectDef: JcdProjectDef): Promise<JcdProjectDtoType> {
+async function upsertProject(client: DbClient, opts: {
+  projectDef: JcdProjectDef;
+}): Promise<JcdProjectDtoType> {
   let jcdProjectDto: JcdProjectDtoType | undefined;
-  jcdProjectDto = await JcdProject.getByKey(client, jcdProjectDef.project_key);
+  jcdProjectDto = await JcdProject.getByKey(client, opts.projectDef.project_key);
   if(jcdProjectDto !== undefined) {
     return jcdProjectDto;
   }
-  jcdProjectDto = await JcdProject.insert(client, jcdProjectDef);
+  jcdProjectDto = await JcdProject.insert(client, opts.projectDef);
   return jcdProjectDto;
 }
