@@ -34,6 +34,9 @@ import { JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
 import { JcdProjectVenue, Venue } from './jcd-project-venue';
 import { JcdProjectImageDtoType } from '../jcd-dto/jcd-project-image-dto';
 import { JcdImage, JcdProjectImage } from './jcd-image';
+import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
+import { JcdProjectSort } from './jcd-sort';
+import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -42,10 +45,19 @@ export async function jcdDbV4Main() {
 
   let timer = Timer.start();
 
-  let projPromises = projects.map(proj => {
-    return upsertProject(PgClient, proj);
+  let projPromises = projects.map(projectDef => {
+    return upsertProject(PgClient, {
+      projectDef,
+    });
   });
   let projectDtos = await Promise.all(projPromises);
+
+  await PgClient.transact(async (client) => {
+    await insertProjectSorts(client, {
+      sortDefs: jcdProjectSortDefs,
+    });
+  });
+
   for(let i = 0; i < projectDtos.length; ++i) {
     let jcdProjectDto = projectDtos[i];
     let currProject = projects[i];
@@ -68,28 +80,21 @@ async function upsertProjectDef(opts: {
     jcdProjectDef,
     jcdProjectDto,
   } = opts;
-  console.log(`\n${jcdProjectDef.project_key}`);
 
   let descDto = await upsertProjectDesc(PgClient, {
     text: jcdProjectDef.description.join('\n'),
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
 
-  let jcdProjDescDto = await upsertJcdProjectDesc(PgClient, {
+  await upsertJcdProjectDesc(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     description_id: descDto.description_id,
   });
 
-  let jcdProjVenueDto = await upsertJcdVenue(PgClient, {
+  await upsertJcdVenue(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     name: jcdProjectDef.venue,
   });
-
-  console.log([
-    jcdProjectDto.jcd_project_id,
-    jcdProjDescDto.jcd_project_description_id,
-    jcdProjVenueDto.venue_id,
-  ]);
 
   await upsertJcdCredits(PgClient, {
     jcdProjectDef,
@@ -111,6 +116,60 @@ async function upsertProjectDef(opts: {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     jcdImageDefs: jcdProjectDef.images,
   });
+}
+
+async function insertProjectSorts(client: DbClient, opts: {
+  sortDefs: JcdProjectSortDef[];
+}) {
+  /*
+    Only insert entries that are new. In other words, respect any entry
+      that exists in the DB already.
+    This is to protect against accidentally updating the sort order
+      defined by the user if it exists already.
+  _*/
+  for(let i = 0; i < opts.sortDefs.length; ++i) {
+    let currSortDef = opts.sortDefs[i];
+    let jcdProjectDto = await JcdProject.getByKey(client, currSortDef[0]);
+    if(jcdProjectDto === undefined) {
+      throw new Error(`attempted to insert SortDef for jcd_project not in DB, sortDef: ${currSortDef[0]}`);
+    }
+    let jcdProjectSorts = await JcdProjectSort.getProjectSorts(client);
+    let foundProjSortIdx = jcdProjectSorts.findIndex(projSort => {
+      return currSortDef[0] === projSort.project_key;
+    });
+    if(foundProjSortIdx === -1) {
+      let prevSortDef: JcdProjectSortDef | undefined;
+      let insertAfterSortDto: JcdProjectSortKeyDtoType | undefined;
+      if((prevSortDef = opts.sortDefs[i - 1]) !== undefined) {
+        let insertAfterProjectSortIdx = jcdProjectSorts.findIndex(projSort => {
+          return prevSortDef?.[0] === projSort.project_key;
+        });
+        insertAfterSortDto = jcdProjectSorts[insertAfterProjectSortIdx];
+      }
+      let insertSortOrder: number;
+      if(insertAfterSortDto === undefined) {
+        /*
+          No entries found before this one,
+            insert at beginning
+        _*/
+        insertSortOrder = 1;
+      } else {
+        /*
+          insert after found previous sort entry
+        _*/
+        insertSortOrder = insertAfterSortDto.sort_order + 1;
+      }
+      let insertOutStr = `inserting ${jcdProjectDto.project_key} at ${insertSortOrder}`;
+      if(insertAfterSortDto !== undefined) {
+        insertOutStr += ` after ${insertAfterSortDto.project_key}`;
+      }
+      console.log(insertOutStr);
+      await JcdProjectSort.insert(client, {
+        jcd_project_id: jcdProjectDto.jcd_project_id,
+        sort_order: insertSortOrder,
+      });
+    }
+  }
 }
 
 async function upsertJcdImages(client: DbClient, opts: {
@@ -534,12 +593,14 @@ async function upsertProjectDesc(client: DbClient, opts: {
   return descDto;
 }
 
-async function upsertProject(client: DbClient, jcdProjectDef: JcdProjectDef): Promise<JcdProjectDtoType> {
+async function upsertProject(client: DbClient, opts: {
+  projectDef: JcdProjectDef;
+}): Promise<JcdProjectDtoType> {
   let jcdProjectDto: JcdProjectDtoType | undefined;
-  jcdProjectDto = await JcdProject.getByKey(client, jcdProjectDef.project_key);
+  jcdProjectDto = await JcdProject.getByKey(client, opts.projectDef.project_key);
   if(jcdProjectDto !== undefined) {
     return jcdProjectDto;
   }
-  jcdProjectDto = await JcdProject.insert(client, jcdProjectDef);
+  jcdProjectDto = await JcdProject.insert(client, opts.projectDef);
   return jcdProjectDto;
 }

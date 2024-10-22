@@ -14,7 +14,7 @@ let jcdProjectSortBase: JcdV4ProjectKey[] = [
   'AFTERSHOCK',
   'THE_TEMPEST',
   'JAMES_AND_THE_GIANT_PEACH',
-  'O_DEAR_BLOSSOM',
+  // 'O_DEAR_BLOSSOM',
   'THE_DIARY_OF_ANNE_FRANK',
   'THE_CLEAN_UP_PROJECT',
   'THE_DRAG',
