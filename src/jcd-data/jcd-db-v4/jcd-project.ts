@@ -4,9 +4,19 @@ import { JcdProjectDto, JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { DbClient } from '../../lib/postgres-client';
 
 export const JcdProject = {
+  getAll: getJcdProjects,
   getByKey: getProjectByKey,
   insert: insertProject,
 } as const;
+
+async function getJcdProjects(client: DbClient) {
+  let queryStr = `
+    SELECT * FROM jcd_project jp
+  `;
+  let res = await client.query(queryStr);
+  let jcdProjects = res.rows.map(JcdProjectDto.deserialize);
+  return jcdProjects;
+}
 
 async function insertProject(
   client: DbClient,

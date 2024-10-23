@@ -21,6 +21,7 @@ export type JcdImageDtoType = Static<typeof JcdImageDtoSchema>;
 
 export const JcdImageDto = {
   deserialize,
+  schema: JcdImageDtoSchema,
 } as const;
 
 function deserialize(val: unknown): JcdImageDtoType {

@@ -32,15 +32,18 @@ import { Description, JcdProjectDesc } from './jcd-desc';
 import { JcdProject } from './jcd-project';
 import { JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
 import { JcdProjectVenue, Venue } from './jcd-project-venue';
-import { JcdProjectImageDtoType } from '../jcd-dto/jcd-project-image-dto';
-import { JcdImage, JcdProjectImage } from './jcd-image';
+import { JcdProjectImageDtoType, JcdProjectImageJoinDtoType } from '../jcd-dto/jcd-project-image-dto';
+import { JcdImage } from './jcd-image';
+import { JcdProjectImage } from './jcd-project-image';
 import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
-import { JcdProjectSort } from './jcd-sort';
+import { JcdProjectSort } from './jcd-project-sort';
 import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
+import { JcdProjectImageSort } from './jcd-project-image-sort';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
   // let projects = JcdV4Projects.slice(0, 5);
+  // projects = JcdV4Projects.slice(0, 1);
   console.log(projects.map(proj => proj.project_key));
 
   let timer = Timer.start();
@@ -50,16 +53,23 @@ export async function jcdDbV4Main() {
       projectDef,
     });
   });
-  let projectDtos = await Promise.all(projPromises);
+  let upsertedProjectDtos = await Promise.all(projPromises);
 
   await PgClient.transact(async (client) => {
+    let jcdProjectDtos = await JcdProject.getAll(client);
+    let sortDefs = jcdProjectSortDefs.filter(sortDef => {
+      let foundJcdProjectDto = jcdProjectDtos.find(projDto => {
+        return sortDef[0] === projDto.project_key;
+      });
+      return foundJcdProjectDto !== undefined;
+    });
     await insertProjectSorts(client, {
-      sortDefs: jcdProjectSortDefs,
+      sortDefs,
     });
   });
 
-  for(let i = 0; i < projectDtos.length; ++i) {
-    let jcdProjectDto = projectDtos[i];
+  for(let i = 0; i < upsertedProjectDtos.length; ++i) {
+    let jcdProjectDto = upsertedProjectDtos[i];
     let currProject = projects[i];
     await upsertProjectDef({
       jcdProjectDef: currProject,
@@ -116,6 +126,12 @@ async function upsertProjectDef(opts: {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     jcdImageDefs: jcdProjectDef.images,
   });
+  await PgClient.transact(async (client) => {
+    await insertJcdProjectImageSorts(client, {
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+      jcdImageDefs: jcdProjectDef.images,
+    });
+  });
 }
 
 async function insertProjectSorts(client: DbClient, opts: {
@@ -166,6 +182,61 @@ async function insertProjectSorts(client: DbClient, opts: {
       console.log(insertOutStr);
       await JcdProjectSort.insert(client, {
         jcd_project_id: jcdProjectDto.jcd_project_id,
+        sort_order: insertSortOrder,
+      });
+    }
+  }
+}
+
+async function insertJcdProjectImageSorts(client: DbClient, opts: {
+  jcd_project_id: number;
+  jcdImageDefs: JcdImageDef[];
+}) {
+  for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
+    let currImageDef = opts.jcdImageDefs[i];
+    let jcdImageDto = await JcdImage.getByPath(client, {
+      path: currImageDef[1],
+    });
+    if(jcdImageDto === undefined) {
+      throw new Error(`attempted to insert JcdProjectImageSort for jcd_image not in db: ${currImageDef[1]}`);
+    }
+    let jcdProjectImageDto = await JcdProjectImage.get(client, {
+      jcd_project_id: opts.jcd_project_id,
+      jcd_image_id: jcdImageDto.jcd_image_id,
+      kind: imageDtoKindFromDef(currImageDef),
+    });
+    if(jcdProjectImageDto === undefined) {
+      throw new Error(`attempted to insert JcdProjectImageSort for jcd_project_image not in db. imageDef: [${currImageDef[0]}, ${currImageDef[1]}]`);
+    }
+    let jcdProjectImageDtos = await JcdProjectImage.getAllByProject(client, {
+      jcd_project_id: opts.jcd_project_id,
+    });
+    let foundImageDtoIdx = jcdProjectImageDtos.findIndex(projImageDto => {
+      return currImageDef[1] === projImageDto.path;
+    });
+    if(foundImageDtoIdx === -1) {
+      let prevSortDef: JcdImageDef | undefined;
+      let insertAfterSortDto: JcdProjectImageJoinDtoType | undefined;
+      if((prevSortDef = opts.jcdImageDefs[i - 1]) !== undefined) {
+        let insertAfterDtoIdx = jcdProjectImageDtos.findIndex(projImage => {
+          return prevSortDef?.[1] === projImage.path;
+        });
+        insertAfterSortDto = jcdProjectImageDtos[insertAfterDtoIdx];
+      }
+      let insertSortOrder: number;
+      if(insertAfterSortDto === undefined) {
+        insertSortOrder = 1;
+      } else {
+        insertSortOrder = insertAfterSortDto.sort_order + 1;
+      }
+      let insertOutStr = `inserting ${currImageDef[1]} at ${insertSortOrder}`;
+      if(insertAfterSortDto !== undefined) {
+        insertOutStr += ` after ${insertAfterSortDto.path}`;
+      }
+      console.log(insertOutStr);
+      await JcdProjectImageSort.insert(client, {
+        jcd_project_id: opts.jcd_project_id,
+        jcd_project_image_id: jcdProjectImageDto.jcd_project_image_id,
         sort_order: insertSortOrder,
       });
     }
