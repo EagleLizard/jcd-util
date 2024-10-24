@@ -39,6 +39,7 @@ import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
 import { JcdProjectSort } from './jcd-project-sort';
 import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 import { JcdProjectImageSort } from './jcd-project-image-sort';
+import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -122,7 +123,7 @@ async function upsertProjectDef(opts: {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
-  await upsertJcdImages(PgClient, {
+  let jcdImageDtoTuples = await upsertJcdImages(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     jcdImageDefs: jcdProjectDef.images,
   });
@@ -130,6 +131,7 @@ async function upsertProjectDef(opts: {
     await insertJcdProjectImageSorts(client, {
       jcd_project_id: jcdProjectDto.jcd_project_id,
       jcdImageDefs: jcdProjectDef.images,
+      jcdImageDtoTuples,
     });
   });
 }
@@ -191,23 +193,17 @@ async function insertProjectSorts(client: DbClient, opts: {
 async function insertJcdProjectImageSorts(client: DbClient, opts: {
   jcd_project_id: number;
   jcdImageDefs: JcdImageDef[];
+  jcdImageDtoTuples: [JcdImageDtoType, JcdProjectImageDtoType][],
 }) {
   for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
     let currImageDef = opts.jcdImageDefs[i];
-    let jcdImageDto = await JcdImage.getByPath(client, {
-      path: currImageDef[1],
+    let foundImageDtoTuple = opts.jcdImageDtoTuples.find(dtoTuple => {
+      return dtoTuple[0].path === currImageDef[1];
     });
-    if(jcdImageDto === undefined) {
+    if(foundImageDtoTuple === undefined) {
       throw new Error(`attempted to insert JcdProjectImageSort for jcd_image not in db: ${currImageDef[1]}`);
     }
-    let jcdProjectImageDto = await JcdProjectImage.get(client, {
-      jcd_project_id: opts.jcd_project_id,
-      jcd_image_id: jcdImageDto.jcd_image_id,
-      kind: imageDtoKindFromDef(currImageDef),
-    });
-    if(jcdProjectImageDto === undefined) {
-      throw new Error(`attempted to insert JcdProjectImageSort for jcd_project_image not in db. imageDef: [${currImageDef[0]}, ${currImageDef[1]}]`);
-    }
+    let jcdProjectImageDto = foundImageDtoTuple[1];
     let jcdProjectImageDtos = await JcdProjectImage.getAllByProject(client, {
       jcd_project_id: opts.jcd_project_id,
     });
@@ -246,25 +242,25 @@ async function insertJcdProjectImageSorts(client: DbClient, opts: {
 async function upsertJcdImages(client: DbClient, opts: {
   jcd_project_id: number;
   jcdImageDefs: JcdImageDef[];
-}): Promise<JcdProjectImageDtoType[]> {
-  let jcdProjectImageDtos: JcdProjectImageDtoType[] = [];
+}): Promise<[JcdImageDtoType, JcdProjectImageDtoType][]> {
+  let jcdProjectImageDtoTuples: [JcdImageDtoType, JcdProjectImageDtoType][] = [];
 
   for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
     let currImageDef = opts.jcdImageDefs[i];
-    let jcdProjectImageDto = await upsertJcdImage(client, {
+    let jcdProjectImageDtoTuple = await upsertJcdImage(client, {
       jcd_project_id: opts.jcd_project_id,
       imageDef: currImageDef,
     });
-    jcdProjectImageDtos.push(jcdProjectImageDto);
+    jcdProjectImageDtoTuples.push(jcdProjectImageDtoTuple);
   }
 
-  return jcdProjectImageDtos;
+  return jcdProjectImageDtoTuples;
 }
 
 async function upsertJcdImage(client: DbClient, opts: {
   jcd_project_id: number;
   imageDef: JcdImageDef;
-}) {
+}): Promise<[JcdImageDtoType, JcdProjectImageDtoType]> {
   let jcdImageDto = await JcdImage.getByPath(client, {
     path: opts.imageDef[1],
   });
@@ -286,7 +282,7 @@ async function upsertJcdImage(client: DbClient, opts: {
       kind: jcdImageKind,
     });
   }
-  return jcdProjectImageDto;
+  return [ jcdImageDto, jcdProjectImageDto ];
 }
 
 function imageDtoKindFromDef(def: JcdImageDef): JcdProjectImageDtoType['kind'] {
