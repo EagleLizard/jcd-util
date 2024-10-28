@@ -131,10 +131,11 @@ async function upsertProjectDef(opts: {
       jcdProdCreditDtoTuples,
     });
   });
-
-  await upsertJcdProducers(PgClient, {
-    jcdProjectDef,
-    jcd_project_id: jcdProjectDto.jcd_project_id,
+  PgClient.transact(async (client) => {
+    await upsertJcdProducers(client, {
+      jcdProjectDef,
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+    });
   });
   await upsertJcdPress(PgClient, {
     jcdProjectDef,
@@ -516,25 +517,34 @@ async function upsertPublication(client: DbClient, opts: {
 async function upsertJcdProducers(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
-}): Promise<JcdProducerDtoType[]> {
-  let jcdProducerDtos: JcdProducerDtoType[] = [];
+}): Promise<[JcdContribDef, (PersonDtoType | OrgDtoType), JcdProducerDtoType][]> {
+  let jcdProducerDtoTuples: [JcdContribDef, (PersonDtoType | OrgDtoType), JcdProducerDtoType][] = [];
 
   for(let i = 0; i < opts.jcdProjectDef.producer.length; ++i) {
+    let prevProducerDtoTuple: [JcdContribDef, (PersonDtoType | OrgDtoType), JcdProducerDtoType] | undefined;
     let currProducerDef = opts.jcdProjectDef.producer[i];
-    let jcdProducerDto = await upsertJcdProducer(client, {
+    let insertAfterIdx: number;
+    if((prevProducerDtoTuple = jcdProducerDtoTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevProducerDtoTuple[2].sort_order + 1;
+    } else {
+      insertAfterIdx = 1;
+    }
+    let jcdProducerDtoTuple = await upsertJcdProducer(client, {
       jcd_project_id: opts.jcd_project_id,
       producerDef: currProducerDef,
+      sort_order: insertAfterIdx,
     });
-    jcdProducerDtos.push(jcdProducerDto);
+    jcdProducerDtoTuples.push(jcdProducerDtoTuple);
   }
 
-  return jcdProducerDtos;
+  return jcdProducerDtoTuples;
 }
 
 async function upsertJcdProducer(client: DbClient, opts: {
   jcd_project_id: number;
   producerDef: JcdContribDef;
-}): Promise<JcdProducerDtoType> {
+  sort_order: number;
+}): Promise<[JcdContribDef, (PersonDtoType | OrgDtoType), JcdProducerDtoType]> {
   let contribDto = await upsertContrib(client, {
     contribDef: opts.producerDef,
   });
@@ -546,9 +556,10 @@ async function upsertJcdProducer(client: DbClient, opts: {
     jcdProducerDto = await JcdProducer.insert(client, {
       jcd_project_id: opts.jcd_project_id,
       jcdContribDto: contribDto,
+      sort_order: opts.sort_order,
     });
   }
-  return jcdProducerDto;
+  return [ opts.producerDef, contribDto, jcdProducerDto ];
 }
 
 async function upsertJcdProdCredits(client: DbClient, opts: {
