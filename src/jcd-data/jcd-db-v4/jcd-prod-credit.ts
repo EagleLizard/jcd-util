@@ -1,6 +1,6 @@
 
 import { JcdCreditDef } from './jcd-v4-projects';
-import { JcdProdCreditDto, JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
+import { JcdProdCreditDto, JcdProdCreditDtoType, JcdProdCreditOrderDto } from '../jcd-dto/jcd-prod-credit-dto';
 import { PersonDto, PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDto, OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdProdCreditContribDto, JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
@@ -8,12 +8,31 @@ import { DbClient } from '../../lib/postgres-client';
 import { QueryResult } from 'pg';
 
 export const JcdProdCredit = {
+  getAllByProject: getAllProdCreditsByProject,
   upsert: upsertJcdProdCredit,
 } as const;
 
 export const JcdProdCreditContrib = {
   upsert: upsertJcdProdCreditContrib,
 } as const;
+
+async function getAllProdCreditsByProject(client: DbClient, opts: {
+  jcd_project_id: number;
+}) {
+  let queryStr = `
+    SELECT jpc.*, jpcs.sort_order FROM jcd_prod_credit jpc
+      INNER JOIN jcd_project jp
+        ON jpc.jcd_project_id = jp.jcd_project_id
+      INNER JOIN jcd_prod_credit_sort jpcs
+        ON jpc.jcd_prod_credit_id = jpcs.jcd_prod_credit_id
+    WHERE jpc.jcd_project_id = $1
+  `;
+  let res = await client.query(queryStr, [
+    opts.jcd_project_id,
+  ]);
+  let jcdProdCreditOrderDtos = res.rows.map(JcdProdCreditOrderDto.deserialize);
+  return jcdProdCreditOrderDtos;
+}
 
 async function upsertJcdProdCredit(client: DbClient, opts: {
   jcdCreditDef: JcdCreditDef;

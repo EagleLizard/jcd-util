@@ -18,10 +18,10 @@ import { JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { DescriptionDto } from '../jcd-dto/description-dto';
 import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
 import { JcdCreditDtoType, JcdCreditOrderDtoType } from '../jcd-dto/jcd-credit-dto';
-import { PersonDtoType, PersonDto } from '../jcd-dto/person-dto';
-import { OrgDtoType, OrgDto } from '../jcd-dto/org-dto';
+import { PersonDtoType } from '../jcd-dto/person-dto';
+import { OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
-import { JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
+import { JcdProdCreditDtoType, JcdProdCreditOrderDtoType } from '../jcd-dto/jcd-prod-credit-dto';
 import { JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
 import { JcdProducerDtoType } from '../jcd-dto/jcd-producer-dto';
 import { PublicationDtoType } from '../jcd-dto/publication-dto';
@@ -41,6 +41,7 @@ import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 import { JcdProjectImageSort } from './jcd-project-image-sort';
 import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
 import { JcdCreditSort } from './jcd-credit-sort';
+import { JcdProdCreditSort } from './jcd-prod-credit-sort';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -123,6 +124,12 @@ async function upsertProjectDef(opts: {
   let jcdProdCreditDtoTuples = await upsertJcdProdCredits(PgClient, {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
+  await PgClient.transact(async (client) => {
+    await insertJcdProdCreditSorts(client, {
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+      jcdProdCreditDtoTuples,
+    });
   });
 
   await upsertJcdProducers(PgClient, {
@@ -295,6 +302,56 @@ async function insertJcdCreditSorts(client: DbClient, opts: {
       await JcdCreditSort.insert(client, {
         jcd_project_id: opts.jcd_project_id,
         jcd_credit_id: jcdCreditDto.jcd_credit_id,
+        sort_order: insertSortOrder,
+      });
+    }
+  }
+}
+
+async function insertJcdProdCreditSorts(client: DbClient, opts: {
+  jcd_project_id: number;
+  jcdProdCreditDtoTuples: [JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]][];
+}) {
+  for(let i = 0; i < opts.jcdProdCreditDtoTuples.length; ++i) {
+    let currProdCreditDtoTuple = opts.jcdProdCreditDtoTuples[i];
+    let jcdProdCreditDto = currProdCreditDtoTuple[1];
+    let sortedJcdProdCreditDtos = await JcdProdCredit.getAllByProject(client, {
+      jcd_project_id: opts.jcd_project_id,
+    });
+    let foundSortedJcdProdCreditIdx = sortedJcdProdCreditDtos.findIndex(sortedCreditDto => {
+      return jcdProdCreditDto.jcd_prod_credit_id === sortedCreditDto.jcd_prod_credit_id;
+    });
+    if(foundSortedJcdProdCreditIdx === -1) {
+      /*
+        If not exist, insert after prev entry's sort_order.
+          If prev entry not exist in sorted, insert a beginning.
+      _*/
+      let prevProdCreditDto: JcdProdCreditDtoType | undefined;
+      let insertAfterDto: JcdProdCreditOrderDtoType | undefined;
+      if((prevProdCreditDto = opts.jcdProdCreditDtoTuples[i - 1]?.[1]) !== undefined) {
+        let insertAfterDtoIdx = sortedJcdProdCreditDtos.findIndex(sortedProdCreditDto => {
+          return prevProdCreditDto?.jcd_prod_credit_id === sortedProdCreditDto.jcd_prod_credit_id;
+        });
+        if(insertAfterDtoIdx !== -1) {
+          insertAfterDto = sortedJcdProdCreditDtos[insertAfterDtoIdx];
+        }
+      }
+      let insertSortOrder: number;
+      if(insertAfterDto === undefined) {
+        insertSortOrder = 1;
+      } else {
+        insertSortOrder = insertAfterDto.sort_order + 1;
+      }
+      console.log('');
+      console.log(currProdCreditDtoTuple[0]);
+      let insertOutStr = `inserting at ${insertSortOrder}`;
+      if(insertAfterDto !== undefined) {
+        insertOutStr += ` after: ${JSON.stringify(insertAfterDto)}`;
+      }
+      console.log(insertOutStr);
+      await JcdProdCreditSort.insert(client, {
+        jcd_project_id: opts.jcd_project_id,
+        jcd_prod_credit_id: jcdProdCreditDto.jcd_prod_credit_id,
         sort_order: insertSortOrder,
       });
     }

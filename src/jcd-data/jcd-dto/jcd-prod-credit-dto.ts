@@ -1,6 +1,7 @@
 
 import { Type, type Static } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
+import { JcdProdCreditSortDto } from './jcd-prod-credit-sort-dto';
 
 /*
   jcd_prod_credit_id SERIAL PRIMARY KEY,
@@ -28,4 +29,21 @@ export const JcdProdCreditDto = {
 
 function deserialize(val: unknown): JcdProdCreditDtoType {
   return Value.Parse(JcdProdCreditDtoSchema, val);
+}
+
+const JcdProdCreditOrderDtoSchema = Type.Composite([
+  JcdProdCreditDtoSchema,
+  Type.Object({
+    sort_order: JcdProdCreditSortDto.schema.properties.sort_order,
+  }),
+]);
+
+export type JcdProdCreditOrderDtoType = Static<typeof JcdProdCreditOrderDtoSchema>;
+
+export const JcdProdCreditOrderDto = {
+  deserialize: parseJcdProdCreditOrder,
+} as const;
+
+function parseJcdProdCreditOrder(val: unknown): JcdProdCreditOrderDtoType {
+  return Value.Parse(JcdProdCreditOrderDtoSchema, val);
 }
