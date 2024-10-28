@@ -17,7 +17,7 @@ import { JcdPress, Publication } from './jcd-press';
 import { JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { DescriptionDto } from '../jcd-dto/description-dto';
 import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
-import { JcdCreditDtoType } from '../jcd-dto/jcd-credit-dto';
+import { JcdCreditDtoType, JcdCreditOrderDtoType } from '../jcd-dto/jcd-credit-dto';
 import { PersonDtoType, PersonDto } from '../jcd-dto/person-dto';
 import { OrgDtoType, OrgDto } from '../jcd-dto/org-dto';
 import { JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
@@ -40,6 +40,7 @@ import { JcdProjectSort } from './jcd-project-sort';
 import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 import { JcdProjectImageSort } from './jcd-project-image-sort';
 import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
+import { JcdCreditSort } from './jcd-credit-sort';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -107,9 +108,16 @@ async function upsertProjectDef(opts: {
     name: jcdProjectDef.venue,
   });
 
-  await upsertJcdCredits(PgClient, {
+  let jcdCreditDtoTuples = await upsertJcdCredits(PgClient, {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
+  });
+  await PgClient.transact(async (client) => {
+    await insertJcdCreditSorts(client, {
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+      // jcdCreditDefs: jcdProjectDef.credits,
+      jcdCreditDtoTuples,
+    });
   });
   await upsertJcdProdCredits(PgClient, {
     jcdProjectDef,
@@ -233,6 +241,58 @@ async function insertJcdProjectImageSorts(client: DbClient, opts: {
       await JcdProjectImageSort.insert(client, {
         jcd_project_id: opts.jcd_project_id,
         jcd_project_image_id: jcdProjectImageDto.jcd_project_image_id,
+        sort_order: insertSortOrder,
+      });
+    }
+  }
+}
+
+async function insertJcdCreditSorts(client: DbClient, opts: {
+  jcd_project_id: number;
+  jcdCreditDtoTuples: [JcdCreditDef, JcdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType][]][];
+}) {
+  for(let i = 0; i < opts.jcdCreditDtoTuples.length; ++i) {
+    let currCreditDtoTuple = opts.jcdCreditDtoTuples[i];
+    let jcdCreditDto = currCreditDtoTuple[1];
+    let sortedJcdCreditDtos = await JcdCredit.getAllByProject(client, {
+      jcd_project_id: opts.jcd_project_id,
+    });
+    // console.log(sortedJcdCreditDtos);
+    let foundSortedJcdCreditIdx = sortedJcdCreditDtos.findIndex(sortedCreditDto => {
+      return jcdCreditDto.jcd_credit_id === sortedCreditDto.jcd_credit_id;
+    });
+    if(foundSortedJcdCreditIdx === -1) {
+      /*
+        If not exist, insert after previous entry's
+          sort_order. If previous entry not in sort order,
+          insert at beginning
+      _*/
+      let prevCreditDto: JcdCreditDtoType | undefined;
+      let insertAfterDto: JcdCreditOrderDtoType | undefined;
+      if((prevCreditDto = opts.jcdCreditDtoTuples[i - 1]?.[1]) !== undefined) {
+        let insertAfterDtoIdx = sortedJcdCreditDtos.findIndex(sortedCreditDto => {
+          return prevCreditDto?.jcd_credit_id === sortedCreditDto.jcd_credit_id;
+        });
+        if(insertAfterDtoIdx !== -1) {
+          insertAfterDto = sortedJcdCreditDtos[insertAfterDtoIdx];
+        }
+      }
+      let insertSortOrder: number;
+      if(insertAfterDto === undefined) {
+        insertSortOrder = 1;
+      } else {
+        insertSortOrder = insertAfterDto.sort_order + 1;
+      }
+      console.log('');
+      console.log(currCreditDtoTuple[0]);
+      let insertOutStr = `inserting at ${insertSortOrder}`;
+      if(insertAfterDto !== undefined) {
+        insertOutStr += ` after: ${JSON.stringify(insertAfterDto)}`;
+      }
+      console.log(insertOutStr);
+      await JcdCreditSort.insert(client, {
+        jcd_project_id: opts.jcd_project_id,
+        jcd_credit_id: jcdCreditDto.jcd_credit_id,
         sort_order: insertSortOrder,
       });
     }
@@ -497,60 +557,61 @@ function assertJcdProdCreditUpsert(
 async function upsertJcdCredits(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
-}): Promise<JcdCreditDtoType[]> {
-  let jcdCredits: JcdCreditDtoType[] = [];
+}) {
+  let jcdCreditDtoTuples: [JcdCreditDef, JcdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType][]][] = [];
   for(let i = 0; i < opts.jcdProjectDef.credits.length; ++i) {
     let currCredit = opts.jcdProjectDef.credits[i];
     let currCreditDto = await upsertJcdCredit(client, {
       creditDef: currCredit,
       jcd_project_id: opts.jcd_project_id,
     });
-    jcdCredits.push(currCreditDto);
-    let contribDtos: (PersonDtoType | OrgDtoType)[] = [];
-    let jcdCreditContribDtos: JcdCreditContribDtoType[] = [];
-    for(let k = 0; k < currCredit.contribs.length; ++k) {
-      let currContrib = currCredit.contribs[k];
-      let currContribDto = await upsertContrib(client, {
-        contribDef: currContrib,
-      });
-      contribDtos.push(currContribDto);
-      let jcdCreditContribDto = await upsertJcdCreditContrib(client, {
-        jcdCreditDto: currCreditDto,
-        jcdContribDto: currContribDto,
-      });
-      jcdCreditContribDtos.push(jcdCreditContribDto);
-    }
-    assertJcdCreditUpsert(currCreditDto, jcdCreditContribDtos, contribDtos);
+    let jcdCreditContribDtoTuples = await upsertJcdCreditContribs(client, {
+      jcdCreditDto: currCreditDto,
+      creditDef: currCredit,
+    });
+    jcdCreditDtoTuples.push([
+      currCredit,
+      currCreditDto,
+      jcdCreditContribDtoTuples,
+    ]);
   }
-  return jcdCredits;
+  return jcdCreditDtoTuples;
 }
 
-function assertJcdCreditUpsert(
-  jcdCreditDto: JcdCreditDtoType,
-  jcdCreditContribs: JcdCreditContribDtoType[],
-  contribDtos: (PersonDtoType | OrgDtoType)[],
-) {
-  assert(jcdCreditContribs.length === contribDtos.length);
-  contribDtos.forEach(contrib => {
-    let foundCreditContrib = jcdCreditContribs.find(jcdCreditContrib => {
-      if(PersonDto.check(contrib)) {
-        return jcdCreditContrib.person_id === contrib.person_id;
-      }
-      if(OrgDto.check(contrib)) {
-        return jcdCreditContrib.org_id === contrib.org_id;
-      }
-      return false;
+async function upsertJcdCreditContribs(client: DbClient, opts: {
+  jcdCreditDto: JcdCreditDtoType;
+  creditDef: JcdCreditDef;
+}) {
+  let jcdCreditContribDtoTuples: [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType][] = [];
+  for(let i = 0; i < opts.creditDef.contribs.length; ++i) {
+    let prevCreditContribDtoTuple: [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType] | undefined;
+    let currContrib = opts.creditDef.contribs[i];
+    let currContribDto = await upsertContrib(client, {
+      contribDef: currContrib,
     });
-    assert(foundCreditContrib !== undefined, `${jcdCreditDto.label}: ${contrib.name}`);
-  });
+    let insertAfterIdx: number;
+    if((prevCreditContribDtoTuple = jcdCreditContribDtoTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevCreditContribDtoTuple[1].sort_order + 1;
+    } else {
+      insertAfterIdx = 1;
+    }
+    let jcdCreditContribDto = await upsertJcdCreditContrib(client, {
+      jcdCreditDto: opts.jcdCreditDto,
+      jcdContribDto: currContribDto,
+      sort_order: insertAfterIdx,
+    });
+    jcdCreditContribDtoTuples.push([ currContribDto, jcdCreditContribDto ]);
+  }
+  return jcdCreditContribDtoTuples;
 }
 
 async function upsertJcdCreditContrib(client: DbClient, opts: {
   jcdCreditDto: JcdCreditDtoType;
   jcdContribDto: PersonDtoType | OrgDtoType;
+  sort_order: number;
 }): Promise<JcdCreditContribDtoType> {
   let jcdCreditContribDto = await JcdCreditContrib.get(client, {
-    jcd_credit_id: opts.jcdCreditDto.jcd_project_id,
+    jcd_credit_id: opts.jcdCreditDto.jcd_credit_id,
     jcdContribDto: opts.jcdContribDto,
   });
   if(jcdCreditContribDto !== undefined) {
@@ -559,6 +620,7 @@ async function upsertJcdCreditContrib(client: DbClient, opts: {
   jcdCreditContribDto = await JcdCreditContrib.insert(client, {
     jcd_credit_id: opts.jcdCreditDto.jcd_credit_id,
     jcdContribDto: opts.jcdContribDto,
+    sort_order: opts.sort_order,
   });
   return jcdCreditContribDto;
 }
