@@ -586,31 +586,18 @@ const LARAMIE_PROJECT: JcdProjectDef = {
   ],
   press: [
     {
-      publication: 'The Utah Review',
+      publication: 'UVU Review',
+      description: '“Set designer Janice Chan orchestrated this in a way that seemingly transported the audience to another place.”',
       link: {
-        label: 'Plan-B Theatre Sets World Premiere in Nov. 3-13 Run of Morag Shepherd’s My Brother was a Vampire',
-        url: 'https://www.theutahreview.com/plan-b-theatre-sets-world-premiere-in-nov-3-13-run-of-morag-shepherds-my-brother-was-a-vampire/',
+        label: '\'Laramie Project\' Asks Audiences to Examine Relationship to LGBT Community',
+        url: 'https://www.uvureview.com/news/front-page/recent/review-laramie-project-asks-audiences-to-examine-relationship-to-lgbtq-community/',
       },
     },
     {
-      publication: 'QSaltLake Magazine',
+      publication: 'ABC4 News',
       link: {
-        label: 'Plan-B to Premiere Horror Comedy ‘My Brother was a Vampire’ by Morag Shepherd',
-        url: 'https://www.qsaltlake.com/news/2022/09/24/plan-b-to-premiere-horror-comedy-my-brother-was-a-vampire-by-morag-shepherd/',
-      },
-    },
-    {
-      publication: 'Gephardt Daily',
-      link: {
-        label: 'Review: Plan-B’s ‘My Brother was a Vampire’ is Bloody, Brilliant',
-        url: 'https://gephardtdaily.com/local/review-plan-bs-my-brother-was-a-vampire-is-bloody-brilliant/',
-      },
-    },
-    {
-      publication: '15 Bytes',
-      link: {
-        label: 'Morag Shepherd Avoids the Realist Trap with a Play of Sudden Shifts and Strange Powers',
-        url: 'http://artistsofutah.org/15Bytes/index.php/morag-shepherd-avoids-the-realist-trap-with-a-play-of-sudden-shifts-and-strange-powers/',
+        label: 'UVU Play About Matthew Shepard Highlights Utah\'s Lack of Hate Crime Protections for LGBTQ',
+        url: 'https://www.abc4.com/news/local-news/uvu-play-about-matthew-shepard-highlights-utahs-lack-of-hate-crime-protections-for-lgbtq/',
       },
     },
   ],
