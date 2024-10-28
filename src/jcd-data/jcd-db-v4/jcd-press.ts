@@ -1,4 +1,6 @@
 
+import { QueryResult } from 'pg';
+
 import { PublicationDto, PublicationDtoType } from '../jcd-dto/publication-dto';
 import { JcdPressDto, JcdPressDtoType } from '../jcd-dto/jcd-press-dto';
 import { DbClient } from '../../lib/postgres-client';
@@ -18,19 +20,26 @@ async function insertJcdPress(client: DbClient, opts: {
   publication_id: number;
   link_text: string;
   link_url: string;
+  sort_order: number;
   description?: string;
 }): Promise<JcdPressDtoType> {
+  await shiftJcdPressSorts(client, {
+    jcd_project_id: opts.jcd_project_id,
+    sort_order: opts.sort_order,
+  });
   let colNames = [
     'jcd_project_id',
     'publication_id',
     'link_text',
     'link_url',
+    'sort_order',
   ];
   let rowVals = [
     opts.jcd_project_id,
     opts.publication_id,
     opts.link_text,
     opts.link_url,
+    opts.sort_order,
   ];
   if(opts.description !== undefined) {
     colNames.push('description');
@@ -46,6 +55,44 @@ async function insertJcdPress(client: DbClient, opts: {
   let res = await client.query(queryStr, rowVals);
   let jcdPressDto = JcdPressDto.deserialize(res.rows[0]);
   return jcdPressDto;
+}
+
+async function shiftJcdPressSorts(client: DbClient, opts: {
+  jcd_project_id: number;
+  sort_order: number;
+  shiftBy?: number;
+}) {
+  let queryStr: string;
+  let res: QueryResult;
+  let shiftBy = opts.shiftBy ?? 1;
+  /*
+    lock rows we are going to update.
+    todo:xxx: is this needed?
+  _*/
+  queryStr = `
+    SELECT * FROM jcd_press jp
+      WHERE jp.jcd_project_id = $1
+        AND jp.sort_order >= $2
+    FOR UPDATE
+  `;
+  await client.query(queryStr, [
+    opts.jcd_project_id,
+    opts.sort_order,
+  ]);
+  queryStr = `
+    UPDATE jcd_press
+      SET sort_order = sort_order + $1
+      WHERE jcd_project_id = $2
+        AND sort_order >= $3
+    returning *
+  `;
+  res = await client.query(queryStr, [
+    shiftBy,
+    opts.jcd_project_id,
+    opts.sort_order,
+  ]);
+  console.log(res.rows);
+  return res;
 }
 
 async function getJcdPress(client: DbClient, opts: {

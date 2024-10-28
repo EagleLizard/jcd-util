@@ -7,9 +7,11 @@ import { Value } from '@sinclair/typebox/value';
   description TEXT,
   link_text TEXT NOT NULL,
   link_url TEXT NOT NULL,
+  sort_order INT NOT NULL,
 
   jcd_project_id INT references jcd_project(jcd_project_id) NOT NULL,
   publication_id INT references publication(publication_id) NOT NULL,
+  UNIQUE(sort_order, jcd_project_id),
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -23,6 +25,7 @@ const JcdPressDtoSchema = Type.Object({
   ]),
   link_text: Type.String(),
   link_url: Type.String(),
+  sort_order: Type.Number(),
   jcd_project_id: Type.Number(),
   publication_id: Type.Number(),
   created_at: Type.Date(),

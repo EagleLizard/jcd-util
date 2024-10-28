@@ -1,6 +1,4 @@
 
-import assert from 'assert';
-
 import { DbClient, PgClient } from '../../lib/postgres-client';
 import { Timer } from '../../util/timer';
 import {
@@ -131,16 +129,21 @@ async function upsertProjectDef(opts: {
       jcdProdCreditDtoTuples,
     });
   });
-  PgClient.transact(async (client) => {
+
+  await PgClient.transact(async (client) => {
     await upsertJcdProducers(client, {
       jcdProjectDef,
       jcd_project_id: jcdProjectDto.jcd_project_id,
     });
   });
-  await upsertJcdPress(PgClient, {
-    jcdProjectDef,
-    jcd_project_id: jcdProjectDto.jcd_project_id,
+
+  await PgClient.transact(async (client) => {
+    await upsertJcdPress(client, {
+      jcdProjectDef,
+      jcd_project_id: jcdProjectDto.jcd_project_id,
+    });
   });
+
   let jcdImageDtoTuples = await upsertJcdImages(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     jcdImageDefs: jcdProjectDef.images,
@@ -445,42 +448,32 @@ async function upsertJcdVenue(client: DbClient, opts: {
 async function upsertJcdPress(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
-}): Promise<JcdPressDtoType[]> {
-  let jcdPressDtos: JcdPressDtoType[] = [];
-  let publicationDtos: PublicationDtoType[] = [];
+}): Promise<[PressDef, PublicationDtoType, JcdPressDtoType][]> {
+  let jcdPressDtoTuples: [PressDef, PublicationDtoType, JcdPressDtoType][] = [];
   for(let i = 0; i < opts.jcdProjectDef.press.length; ++i) {
+    let prevPressDtoTuple: [PressDef, PublicationDtoType, JcdPressDtoType] | undefined;
     let currPressDef = opts.jcdProjectDef.press[i];
-    let [ publicationDto, jcdPressDto ] = await upsertJcdPressItem(client, {
+    let insertAfterIdx: number;
+    if((prevPressDtoTuple = jcdPressDtoTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevPressDtoTuple[2].sort_order + 1;
+    } {
+      insertAfterIdx = 1;
+    }
+    let jcdPressDtoTuple = await upsertJcdPressItem(client, {
       jcd_project_id: opts.jcd_project_id,
       pressDef: currPressDef,
+      sort_order: insertAfterIdx,
     });
-    publicationDtos.push(publicationDto);
-    jcdPressDtos.push(jcdPressDto);
+    jcdPressDtoTuples.push(jcdPressDtoTuple);
   }
-  /*
-    Assert jcd_press relations
-   */
-  assertJcdPressUpserts(publicationDtos, jcdPressDtos);
-  return jcdPressDtos;
-}
-
-function assertJcdPressUpserts(
-  publicationDtos: PublicationDtoType[],
-  jcdPressDtos: JcdPressDtoType[],
-) {
-  for(let i = 0; i < publicationDtos.length; ++i) {
-    let publicationDto = publicationDtos[i];
-    let foundJcdPressDto = jcdPressDtos.find(jcdPressDto => {
-      return publicationDto.publication_id === jcdPressDto.publication_id;
-    });
-    assert(foundJcdPressDto !== undefined, `${publicationDto.name}: ${foundJcdPressDto?.link_text}`);
-  }
+  return jcdPressDtoTuples;
 }
 
 async function upsertJcdPressItem(client: DbClient, opts: {
   jcd_project_id: number;
   pressDef: PressDef;
-}): Promise<[PublicationDtoType, JcdPressDtoType]> {
+  sort_order: number;
+}): Promise<[PressDef, PublicationDtoType, JcdPressDtoType]> {
   let publicationDto = await upsertPublication(client, {
     name: opts.pressDef.publication,
   });
@@ -494,10 +487,11 @@ async function upsertJcdPressItem(client: DbClient, opts: {
       publication_id: publicationDto.publication_id,
       link_text: opts.pressDef.link.label,
       link_url: opts.pressDef.link.url,
+      sort_order: opts.sort_order,
       description: opts.pressDef.description,
     });
   }
-  return [ publicationDto, jcdPressDto ];
+  return [ opts.pressDef, publicationDto, jcdPressDto ];
 }
 
 async function upsertPublication(client: DbClient, opts: {
