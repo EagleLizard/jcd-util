@@ -16,6 +16,7 @@ import { Value } from '@sinclair/typebox/value';
 const JcdProdCreditContribDtoSchema = Type.Object({
   jcd_prod_credit_contrib_id: Type.Number(),
   jcd_prod_credit_id: Type.Number(),
+  sort_order: Type.Number(),
   person_id: Type.Union([
     Type.Number(),
     Type.Null(),

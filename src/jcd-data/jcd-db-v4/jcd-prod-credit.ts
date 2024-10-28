@@ -5,6 +5,7 @@ import { PersonDto, PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDto, OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdProdCreditContribDto, JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
 import { DbClient } from '../../lib/postgres-client';
+import { QueryResult } from 'pg';
 
 export const JcdProdCredit = {
   upsert: upsertJcdProdCredit,
@@ -77,6 +78,7 @@ async function getJcdProdCredit(client: DbClient, opts: {
 async function upsertJcdProdCreditContrib(client: DbClient, opts: {
   jcdProdCreditDto: JcdProdCreditDtoType;
   jcdContribDto: PersonDtoType | OrgDtoType;
+  sort_order: number;
 }): Promise<JcdProdCreditContribDtoType> {
   let jcdProdCreditContribDto = await getJcdProdCreditContrib(client, {
     jcd_prod_credit_id: opts.jcdProdCreditDto.jcd_prod_credit_id,
@@ -88,6 +90,7 @@ async function upsertJcdProdCreditContrib(client: DbClient, opts: {
   jcdProdCreditContribDto = await insertJcdProdCreditContrib(client, {
     jcd_prod_credit_id: opts.jcdProdCreditDto.jcd_prod_credit_id,
     jcdContribDto: opts.jcdContribDto,
+    sort_order: opts.sort_order,
   });
   return jcdProdCreditContribDto;
 }
@@ -95,17 +98,20 @@ async function upsertJcdProdCreditContrib(client: DbClient, opts: {
 async function insertJcdProdCreditContrib(client: DbClient, opts: {
   jcd_prod_credit_id: number;
   jcdContribDto: PersonDtoType | OrgDtoType;
+  sort_order: number;
 }): Promise<JcdProdCreditContribDtoType> {
   let jcdProdCreditContribDto: JcdProdCreditContribDtoType;
   if(PersonDto.check(opts.jcdContribDto)) {
     jcdProdCreditContribDto = await insertJcdProdCreditPersonContrib(client, {
       jcd_prod_credit_id: opts.jcd_prod_credit_id,
       jcdContribDto: opts.jcdContribDto,
+      sort_order: opts.sort_order,
     });
   } else if(OrgDto.check(opts.jcdContribDto)) {
     jcdProdCreditContribDto = await insertJcdProdCreditOrgContrib(client, {
       jcd_prod_credit_id: opts.jcd_prod_credit_id,
       jcdContribDto: opts.jcdContribDto,
+      sort_order: opts.sort_order,
     });
   } else {
     console.error({ jcdContribDto: opts.jcdContribDto });
@@ -117,10 +123,16 @@ async function insertJcdProdCreditContrib(client: DbClient, opts: {
 async function insertJcdProdCreditPersonContrib(client: DbClient, opts: {
   jcd_prod_credit_id: number;
   jcdContribDto: PersonDtoType;
+  sort_order: number;
 }): Promise<JcdProdCreditContribDtoType> {
+  await shiftJcdProdCreditContribSorts(client, {
+    jcd_prod_credit_id: opts.jcd_prod_credit_id,
+    sort_order: opts.sort_order,
+  });
   let colNames = [
     'jcd_prod_credit_id',
     'person_id',
+    'sort_order',
   ];
   let colNums = colNames.map((_, idx) => `$${idx + 1}`);
   let queryStr = `
@@ -131,6 +143,7 @@ async function insertJcdProdCreditPersonContrib(client: DbClient, opts: {
   let res = await client.query(queryStr, [
     opts.jcd_prod_credit_id,
     opts.jcdContribDto.person_id,
+    opts.sort_order,
   ]);
   let jcdProdCreditContribDto = JcdProdCreditContribDto.deserialize(res.rows[0]);
   return jcdProdCreditContribDto;
@@ -139,10 +152,16 @@ async function insertJcdProdCreditPersonContrib(client: DbClient, opts: {
 async function insertJcdProdCreditOrgContrib(client: DbClient, opts: {
   jcd_prod_credit_id: number;
   jcdContribDto: OrgDtoType;
+  sort_order: number;
 }): Promise<JcdProdCreditContribDtoType> {
+  await shiftJcdProdCreditContribSorts(client, {
+    jcd_prod_credit_id: opts.jcd_prod_credit_id,
+    sort_order: opts.sort_order,
+  });
   let colNames = [
     'jcd_prod_credit_id',
     'org_id',
+    'sort_order',
   ];
   let colNums = colNames.map((_, idx) => `$${idx + 1}`);
   let queryStr = `
@@ -153,9 +172,48 @@ async function insertJcdProdCreditOrgContrib(client: DbClient, opts: {
   let res = await client.query(queryStr, [
     opts.jcd_prod_credit_id,
     opts.jcdContribDto.org_id,
+    opts.sort_order,
   ]);
   let jcdProdCreditContribDto = JcdProdCreditContribDto.deserialize(res.rows[0]);
   return jcdProdCreditContribDto;
+}
+
+async function shiftJcdProdCreditContribSorts(client: DbClient, opts: {
+  jcd_prod_credit_id: number;
+  sort_order: number;
+  shiftBy?: number;
+}) {
+  let queryStr: string;
+  let res: QueryResult;
+
+  let shiftBy = opts.shiftBy ?? 1;
+  /*
+    lock rows we are going to update.
+    todo:xxx: is this needed?
+  _*/
+  queryStr = `
+    SELECT * FROM jcd_prod_credit_contrib jpcc
+      WHERE jpcc.jcd_prod_credit_id = $1
+        AND jpcc.sort_order >= $2
+    FOR UPDATE
+  `;
+  await client.query(queryStr, [
+    opts.jcd_prod_credit_id,
+    opts.sort_order,
+  ]);
+  queryStr = `
+    UPDATE jcd_prod_credit_contrib
+      SET sort_order = sort_order + $1
+      WHERE jcd_prod_credit_id = $2
+        AND sort_order >= $3
+    returning *
+  `;
+  res = await client.query(queryStr, [
+    shiftBy,
+    opts.jcd_prod_credit_id,
+    opts.sort_order,
+  ]);
+  return res;
 }
 
 async function getJcdProdCreditContrib(client: DbClient, opts: {

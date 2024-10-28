@@ -119,10 +119,12 @@ async function upsertProjectDef(opts: {
       jcdCreditDtoTuples,
     });
   });
-  await upsertJcdProdCredits(PgClient, {
+
+  let jcdProdCreditDtoTuples = await upsertJcdProdCredits(PgClient, {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
+
   await upsertJcdProducers(PgClient, {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
@@ -495,63 +497,59 @@ async function upsertJcdProducer(client: DbClient, opts: {
 async function upsertJcdProdCredits(client: DbClient, opts: {
   jcdProjectDef: JcdProjectDef;
   jcd_project_id: number;
-}): Promise<JcdProdCreditDtoType[]> {
-  let jcdProdCredits: JcdProdCreditDtoType[] = [];
+}): Promise<[JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]][]> {
+  let jcdProdCreditTuples: [JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]][] = [];
   for(let i = 0; i < opts.jcdProjectDef.prod_credits.length; ++i) {
     let currCreditDef = opts.jcdProjectDef.prod_credits[i];
-    let currCreditDto = await upsertJcdProdCredit(client, {
+    let currCreditDtoTuple = await upsertJcdProdCredit(client, {
       jcd_project_id: opts.jcd_project_id,
       creditDef: currCreditDef,
     });
-    jcdProdCredits.push(currCreditDto);
+    jcdProdCreditTuples.push(currCreditDtoTuple);
   }
-  return jcdProdCredits;
+  return jcdProdCreditTuples;
 }
 
 async function upsertJcdProdCredit(client: DbClient, opts: {
   jcd_project_id: number;
   creditDef: JcdCreditDef;
-}): Promise<JcdProdCreditDtoType> {
+}): Promise<[JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]]> {
   let currCreditDto = await JcdProdCredit.upsert(client, {
     jcd_project_id: opts.jcd_project_id,
     jcdCreditDef: opts.creditDef,
   });
-  let contribDtos: (PersonDtoType | OrgDtoType)[] = [];
-  let creditContribDtos: JcdProdCreditContribDtoType[] = [];
-  for(let i  = 0; i < opts.creditDef.contribs.length; ++i) {
-    let currContribDef = opts.creditDef.contribs[i];
-    let currContribDto = await upsertContrib(client, {
-      contribDef: currContribDef,
-    });
-    contribDtos.push(currContribDto);
-    let jcdProdCreditContribDto = await JcdProdCreditContrib.upsert(client, {
-      jcdProdCreditDto: currCreditDto,
-      jcdContribDto: currContribDto,
-    });
-    creditContribDtos.push(jcdProdCreditContribDto);
-  }
-  assertJcdProdCreditUpsert(contribDtos, creditContribDtos, currCreditDto);
-  return currCreditDto;
+  let jcdProdCreditContribDtoTuples = await upsertJcdProdCreditContribs(client, {
+    jcdProdCreditDto: currCreditDto,
+    prodCreditDef: opts.creditDef,
+  });
+  return [ opts.creditDef, currCreditDto, jcdProdCreditContribDtoTuples ];
 }
 
-function assertJcdProdCreditUpsert(
-  contribDtos: (PersonDtoType | OrgDtoType)[],
-  jcdProdCreditContribDtos: JcdProdCreditContribDtoType[],
-  jcdProdCreditDto: JcdProdCreditDtoType,
-) {
-  assert(contribDtos.length === jcdProdCreditContribDtos.length);
-  contribDtos.forEach(contrib => {
-    let foundProdCreditContrib = jcdProdCreditContribDtos.find(prodCreditContrib => {
-      if(PersonDto.check(contrib)) {
-        return prodCreditContrib.person_id === contrib.person_id;
-      }
-      if(OrgDto.check(contrib)) {
-        return prodCreditContrib.org_id === contrib.org_id;
-      }
-      return false;
+async function upsertJcdProdCreditContribs(client: DbClient, opts: {
+  jcdProdCreditDto: JcdProdCreditDtoType;
+  prodCreditDef: JcdCreditDef;
+}) {
+  let jcdProdCreditContribTuples: [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][] = [];
+  for(let i = 0; i < opts.prodCreditDef.contribs.length; ++i) {
+    let prevCreditContribDtoTuple: [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType] | undefined;
+    let currContrib = opts.prodCreditDef.contribs[i];
+    let currContribDto = await upsertContrib(client, {
+      contribDef: currContrib,
     });
-    assert(foundProdCreditContrib !== undefined, `${jcdProdCreditDto.label}: ${contrib.name}`);
-  });
+    let insertAfterIdx: number;
+    if((prevCreditContribDtoTuple = jcdProdCreditContribTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevCreditContribDtoTuple[1].sort_order + 1;
+    } else {
+      insertAfterIdx = 1;
+    }
+    let jcdProdCreditContribDto = await JcdProdCreditContrib.upsert(client, {
+      jcdProdCreditDto: opts.jcdProdCreditDto,
+      jcdContribDto: currContribDto,
+      sort_order: insertAfterIdx,
+    });
+    jcdProdCreditContribTuples.push([ currContribDto, jcdProdCreditContribDto ]);
+  }
+  return jcdProdCreditContribTuples;
 }
 
 async function upsertJcdCredits(client: DbClient, opts: {
