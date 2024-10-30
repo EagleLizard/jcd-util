@@ -96,7 +96,6 @@ async function upsertProjectDef(opts: {
     text: jcdProjectDef.description.join('\n'),
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
-
   await upsertJcdProjectDesc(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
     description_id: descDto.description_id,
