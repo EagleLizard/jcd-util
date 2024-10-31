@@ -40,6 +40,9 @@ import { JcdProjectImageSort } from './jcd-project-image-sort';
 import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
 import { JcdCreditSort } from './jcd-credit-sort';
 import { JcdProdCreditSort } from './jcd-prod-credit-sort';
+import { GalleryDef, JcdV4Galleries } from './jcd-v4-galleries';
+import { JcdGalleryDtoType } from '../jcd-dto/jcd-gallery-dto';
+import { JcdGallery } from './jcd-gallery';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -77,10 +80,38 @@ export async function jcdDbV4Main() {
       jcdProjectDto,
     });
   }
+
+  for(let i = 0; i < JcdV4Galleries.length; ++i) {
+    let jcdGalleryDto = await upsertGalleryDef(PgClient, {
+      galleryDef: JcdV4Galleries[i],
+    });
+    console.log(jcdGalleryDto);
+  }
+
   await PgClient.end();
 
   let elapsedMs = timer.stop();
   console.log(`upserted ${projects.length} in ${elapsedMs} ms`);
+}
+
+async function upsertGalleryDef(client: DbClient, opts: {
+  galleryDef: GalleryDef;
+}) {
+  let jcdGalleryDto = upsertGallery(client, opts);
+  return jcdGalleryDto;
+}
+
+async function upsertGallery(client: DbClient, opts: {
+  galleryDef: GalleryDef;
+}): Promise<JcdGalleryDtoType> {
+  let jcdGalleryDto = await JcdGallery.get(client, opts.galleryDef.gallery_key);
+  if(jcdGalleryDto !== undefined) {
+    return jcdGalleryDto;
+  }
+  jcdGalleryDto = await JcdGallery.insert(client, {
+    gallery_key: opts.galleryDef.gallery_key,
+  });
+  return jcdGalleryDto;
 }
 
 async function upsertProjectDef(opts: {
