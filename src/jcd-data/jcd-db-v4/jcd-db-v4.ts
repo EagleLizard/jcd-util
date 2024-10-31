@@ -43,6 +43,8 @@ import { JcdProdCreditSort } from './jcd-prod-credit-sort';
 import { GalleryDef, JcdV4Galleries } from './jcd-v4-galleries';
 import { JcdGalleryDtoType } from '../jcd-dto/jcd-gallery-dto';
 import { JcdGallery } from './jcd-gallery';
+import { JcdGalleryImage } from './jcd-gallery-image';
+import { JcdGalleryImageDtoType } from '../jcd-dto/jcd-gallery-image-dto';
 
 export async function jcdDbV4Main() {
   let projects = JcdV4Projects;
@@ -82,10 +84,12 @@ export async function jcdDbV4Main() {
   }
 
   for(let i = 0; i < JcdV4Galleries.length; ++i) {
-    let jcdGalleryDto = await upsertGalleryDef(PgClient, {
-      galleryDef: JcdV4Galleries[i],
+    let jcdGalleryDto = await PgClient.transact(async (client) => {
+      return await upsertGalleryDef(client, {
+        galleryDef: JcdV4Galleries[i],
+      });
     });
-    console.log(jcdGalleryDto);
+    console.log(jcdGalleryDto[1].gallery_key);
   }
 
   await PgClient.end();
@@ -103,15 +107,63 @@ async function upsertGalleryDef(client: DbClient, opts: {
 
 async function upsertGallery(client: DbClient, opts: {
   galleryDef: GalleryDef;
-}): Promise<JcdGalleryDtoType> {
+}): Promise<[GalleryDef, JcdGalleryDtoType, [ JcdImageDef, JcdImageDtoType, JcdGalleryImageDtoType ][]]> {
   let jcdGalleryDto = await JcdGallery.get(client, opts.galleryDef.gallery_key);
-  if(jcdGalleryDto !== undefined) {
-    return jcdGalleryDto;
+  if(jcdGalleryDto === undefined) {
+    jcdGalleryDto = await JcdGallery.insert(client, {
+      gallery_key: opts.galleryDef.gallery_key,
+    });
   }
-  jcdGalleryDto = await JcdGallery.insert(client, {
-    gallery_key: opts.galleryDef.gallery_key,
+  let jcdGalleryImageDtoTuples = await upsertJcdGalleryImages(client, {
+    jcd_gallery_id: jcdGalleryDto.jcd_gallery_id,
+    imageDefs: opts.galleryDef.images,
   });
-  return jcdGalleryDto;
+  return [ opts.galleryDef, jcdGalleryDto, jcdGalleryImageDtoTuples ];
+}
+
+async function upsertJcdGalleryImages(client: DbClient, opts: {
+  jcd_gallery_id: number;
+  imageDefs: JcdImageDef[];
+}) {
+  let galleryImageDtoTuples: [ JcdImageDef, JcdImageDtoType, JcdGalleryImageDtoType ][] = [];
+  for(let i = 0; i < opts.imageDefs.length; ++i) {
+    let prevGalleryImageDtoTuple: [ JcdImageDef, JcdImageDtoType, JcdGalleryImageDtoType ] | undefined;
+    let imageDef = opts.imageDefs[i];
+    let insertAfterIdx: number;
+    if((prevGalleryImageDtoTuple = galleryImageDtoTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevGalleryImageDtoTuple[2].sort_order + 1;
+    } else {
+      insertAfterIdx = 1;
+    }
+    let jcdImageDto = await JcdImage.getByPath(client, {
+      path: imageDef[1],
+    });
+    if(jcdImageDto === undefined) {
+      jcdImageDto = await JcdImage.insert(client, {
+        path: imageDef[1],
+      });
+    }
+    let jcdGalleryImageDto = await JcdGalleryImage.get(client, {
+      jcd_gallery_id: opts.jcd_gallery_id,
+      jcd_image_id: jcdImageDto.jcd_image_id,
+      kind: imageDtoKindFromDef(imageDef),
+    });
+    if(jcdGalleryImageDto === undefined) {
+      console.log(`inserting [${imageDef[0]}, ${imageDef[1]}] at ${insertAfterIdx}`);
+      jcdGalleryImageDto = await JcdGalleryImage.insert(client, {
+        jcd_gallery_id: opts.jcd_gallery_id,
+        jcd_image_id: jcdImageDto.jcd_image_id,
+        kind: imageDtoKindFromDef(imageDef),
+        sort_order: insertAfterIdx,
+      });
+    }
+    galleryImageDtoTuples.push([
+      imageDef,
+      jcdImageDto,
+      jcdGalleryImageDto,
+    ]);
+  }
+  return galleryImageDtoTuples;
 }
 
 async function upsertProjectDef(opts: {
