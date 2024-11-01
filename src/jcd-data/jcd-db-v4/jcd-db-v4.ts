@@ -19,7 +19,7 @@ import { JcdCreditDtoType, JcdCreditOrderDtoType } from '../jcd-dto/jcd-credit-d
 import { PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
-import { JcdProdCreditDtoType, JcdProdCreditOrderDtoType } from '../jcd-dto/jcd-prod-credit-dto';
+import { JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
 import { JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
 import { JcdProducerDtoType } from '../jcd-dto/jcd-producer-dto';
 import { PublicationDtoType } from '../jcd-dto/publication-dto';
@@ -36,7 +36,6 @@ import { JcdProjectSort } from './jcd-project-sort';
 import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
 import { JcdCreditSort } from './jcd-credit-sort';
-import { JcdProdCreditSort } from './jcd-prod-credit-sort';
 import { GalleryDef, JcdV4Galleries } from './jcd-v4-galleries';
 import { JcdGalleryDtoType } from '../jcd-dto/jcd-gallery-dto';
 import { JcdGallery } from './jcd-gallery';
@@ -206,12 +205,12 @@ async function upsertProjectDef(opts: {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
-  await PgClient.transact(async (client) => {
-    await insertJcdProdCreditSorts(client, {
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-      jcdProdCreditDtoTuples,
-    });
-  });
+  // await PgClient.transact(async (client) => {
+  //   await insertJcdProdCreditSorts(client, {
+  //     jcd_project_id: jcdProjectDto.jcd_project_id,
+  //     jcdProdCreditDtoTuples,
+  //   });
+  // });
 
   await PgClient.transact(async (client) => {
     await upsertJcdProducers(client, {
@@ -335,56 +334,6 @@ async function insertJcdCreditSorts(client: DbClient, opts: {
       await JcdCreditSort.insert(client, {
         jcd_project_id: opts.jcd_project_id,
         jcd_credit_id: jcdCreditDto.jcd_credit_id,
-        sort_order: insertSortOrder,
-      });
-    }
-  }
-}
-
-async function insertJcdProdCreditSorts(client: DbClient, opts: {
-  jcd_project_id: number;
-  jcdProdCreditDtoTuples: [JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]][];
-}) {
-  for(let i = 0; i < opts.jcdProdCreditDtoTuples.length; ++i) {
-    let currProdCreditDtoTuple = opts.jcdProdCreditDtoTuples[i];
-    let jcdProdCreditDto = currProdCreditDtoTuple[1];
-    let sortedJcdProdCreditDtos = await JcdProdCredit.getAllByProject(client, {
-      jcd_project_id: opts.jcd_project_id,
-    });
-    let foundSortedJcdProdCreditIdx = sortedJcdProdCreditDtos.findIndex(sortedCreditDto => {
-      return jcdProdCreditDto.jcd_prod_credit_id === sortedCreditDto.jcd_prod_credit_id;
-    });
-    if(foundSortedJcdProdCreditIdx === -1) {
-      /*
-        If not exist, insert after prev entry's sort_order.
-          If prev entry not exist in sorted, insert a beginning.
-      _*/
-      let prevProdCreditDto: JcdProdCreditDtoType | undefined;
-      let insertAfterDto: JcdProdCreditOrderDtoType | undefined;
-      if((prevProdCreditDto = opts.jcdProdCreditDtoTuples[i - 1]?.[1]) !== undefined) {
-        let insertAfterDtoIdx = sortedJcdProdCreditDtos.findIndex(sortedProdCreditDto => {
-          return prevProdCreditDto?.jcd_prod_credit_id === sortedProdCreditDto.jcd_prod_credit_id;
-        });
-        if(insertAfterDtoIdx !== -1) {
-          insertAfterDto = sortedJcdProdCreditDtos[insertAfterDtoIdx];
-        }
-      }
-      let insertSortOrder: number;
-      if(insertAfterDto === undefined) {
-        insertSortOrder = 1;
-      } else {
-        insertSortOrder = insertAfterDto.sort_order + 1;
-      }
-      console.log('');
-      console.log(currProdCreditDtoTuple[0]);
-      let insertOutStr = `inserting at ${insertSortOrder}`;
-      if(insertAfterDto !== undefined) {
-        insertOutStr += ` after: ${JSON.stringify(insertAfterDto)}`;
-      }
-      console.log(insertOutStr);
-      await JcdProdCreditSort.insert(client, {
-        jcd_project_id: opts.jcd_project_id,
-        jcd_prod_credit_id: jcdProdCreditDto.jcd_prod_credit_id,
         sort_order: insertSortOrder,
       });
     }
@@ -545,10 +494,18 @@ async function upsertJcdProdCredits(client: DbClient, opts: {
 }): Promise<[JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]][]> {
   let jcdProdCreditTuples: [JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]][] = [];
   for(let i = 0; i < opts.jcdProjectDef.prod_credits.length; ++i) {
+    let prevCreditDtoTuple: [JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]];
     let currCreditDef = opts.jcdProjectDef.prod_credits[i];
+    let insertAfterIdx: number;
+    if((prevCreditDtoTuple = jcdProdCreditTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevCreditDtoTuple[1].sort_order + 1;
+    } else {
+      insertAfterIdx = 1;
+    }
     let currCreditDtoTuple = await upsertJcdProdCredit(client, {
       jcd_project_id: opts.jcd_project_id,
       creditDef: currCreditDef,
+      sort_order: insertAfterIdx,
     });
     jcdProdCreditTuples.push(currCreditDtoTuple);
   }
@@ -558,10 +515,12 @@ async function upsertJcdProdCredits(client: DbClient, opts: {
 async function upsertJcdProdCredit(client: DbClient, opts: {
   jcd_project_id: number;
   creditDef: JcdCreditDef;
+  sort_order: number;
 }): Promise<[JcdCreditDef, JcdProdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdProdCreditContribDtoType][]]> {
   let currCreditDto = await JcdProdCredit.upsert(client, {
     jcd_project_id: opts.jcd_project_id,
     jcdCreditDef: opts.creditDef,
+    sort_order: opts.sort_order,
   });
   let jcdProdCreditContribDtoTuples = await upsertJcdProdCreditContribs(client, {
     jcdProdCreditDto: currCreditDto,

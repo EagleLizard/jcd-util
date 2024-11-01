@@ -20,23 +20,22 @@ async function getAllProdCreditsByProject(client: DbClient, opts: {
   jcd_project_id: number;
 }) {
   let queryStr = `
-    SELECT jpc.*, jpcs.sort_order FROM jcd_prod_credit jpc
+    SELECT jpc.*, jpc.sort_order FROM jcd_prod_credit jpc
       INNER JOIN jcd_project jp
         ON jpc.jcd_project_id = jp.jcd_project_id
-      INNER JOIN jcd_prod_credit_sort jpcs
-        ON jpc.jcd_prod_credit_id = jpcs.jcd_prod_credit_id
     WHERE jpc.jcd_project_id = $1
   `;
   let res = await client.query(queryStr, [
     opts.jcd_project_id,
   ]);
-  let jcdProdCreditOrderDtos = res.rows.map(JcdProdCreditOrderDto.deserialize);
+  let jcdProdCreditOrderDtos = res.rows.map(JcdProdCreditDto.deserialize);
   return jcdProdCreditOrderDtos;
 }
 
 async function upsertJcdProdCredit(client: DbClient, opts: {
   jcdCreditDef: JcdCreditDef;
   jcd_project_id: number;
+  sort_order: number;
 }): Promise<JcdProdCreditDtoType> {
   let jcdProdCreditDto = await getJcdProdCredit(client, {
     jcd_project_id: opts.jcd_project_id,
@@ -48,6 +47,7 @@ async function upsertJcdProdCredit(client: DbClient, opts: {
   jcdProdCreditDto = await insertJcdProdCredit(client, {
     jcd_project_id: opts.jcd_project_id,
     label: opts.jcdCreditDef.label,
+    sort_order: opts.sort_order,
   });
   return jcdProdCreditDto;
 }
@@ -55,10 +55,16 @@ async function upsertJcdProdCredit(client: DbClient, opts: {
 async function insertJcdProdCredit(client: DbClient, opts: {
   jcd_project_id: number;
   label: string;
+  sort_order: number;
 }): Promise<JcdProdCreditDtoType> {
+  await shiftJcdProdCreditSorts(client, {
+    jcd_project_id: opts.jcd_project_id,
+    sort_order: opts.sort_order,
+  });
   let colNames = [
     'jcd_project_id',
     'label',
+    'sort_order',
   ];
   let colNums = colNames.map((_, idx) => `$${idx + 1}`);
   let queryStr = `
@@ -69,6 +75,7 @@ async function insertJcdProdCredit(client: DbClient, opts: {
   let res = await client.query(queryStr, [
     opts.jcd_project_id,
     opts.label,
+    opts.sort_order,
   ]);
   let jcdProdCreditDto = JcdProdCreditDto.deserialize(res.rows[0]);
   return jcdProdCreditDto;
@@ -92,6 +99,44 @@ async function getJcdProdCredit(client: DbClient, opts: {
   }
   let jcdProdCreditDto = JcdProdCreditDto.deserialize(res.rows[0]);
   return jcdProdCreditDto;
+}
+
+async function shiftJcdProdCreditSorts(client: DbClient, opts: {
+  jcd_project_id: number;
+  sort_order: number;
+  shiftBy?: number;
+}) {
+  let queryStr: string;
+  let res: QueryResult;
+  let shiftBy = opts.shiftBy ?? 1;
+
+  /*
+    lock rows we are going to update.
+    todo:xxx: is this needed?
+  _*/
+  queryStr = `
+    SELECT * FROM jcd_prod_credit jpc
+      WHERE jpc.jcd_project_id = $1
+      AND jpc.sort_order >= $2
+    FOR UPDATE
+  `;
+  await client.query(queryStr, [
+    opts.jcd_project_id,
+    opts.sort_order,
+  ]);
+  queryStr = `
+    UPDATE jcd_prod_credit
+      SET sort_order = sort_order + $1
+    WHERE jcd_project_id = $2
+      AND sort_order >= $3
+    returning *
+  `;
+  res = await client.query(queryStr, [
+    shiftBy,
+    opts.jcd_project_id,
+    opts.sort_order,
+  ]);
+  return res;
 }
 
 async function upsertJcdProdCreditContrib(client: DbClient, opts: {
