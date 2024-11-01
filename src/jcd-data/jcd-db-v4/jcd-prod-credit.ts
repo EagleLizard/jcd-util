@@ -1,6 +1,6 @@
 
 import { JcdCreditDef } from './jcd-v4-projects';
-import { JcdProdCreditDto, JcdProdCreditDtoType, JcdProdCreditOrderDto } from '../jcd-dto/jcd-prod-credit-dto';
+import { JcdProdCreditDto, JcdProdCreditDtoType } from '../jcd-dto/jcd-prod-credit-dto';
 import { PersonDto, PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDto, OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdProdCreditContribDto, JcdProdCreditContribDtoType } from '../jcd-dto/jcd-prod-credit-contrib-dto';
