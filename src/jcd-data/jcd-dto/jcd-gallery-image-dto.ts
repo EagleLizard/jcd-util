@@ -1,7 +1,6 @@
 
 import { Type, type Static } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { JcdProjectImageDto } from './jcd-project-image-dto';
 
 /*
   jcd_gallery_image_id SERIAL PRIMARY KEY,
@@ -23,7 +22,10 @@ const JcdGalleryImageDtoSchema = Type.Object({
   sort_order: Type.Number(),
   jcd_gallery_id: Type.Number(),
   jcd_image_id: Type.Number(),
-  kind: JcdProjectImageDto.schema.properties.kind,
+  kind: Type.Union([
+    Type.Literal('gallery'),
+    Type.Literal('title'),
+  ]),
 
   created_at: Type.Date(),
   last_modified: Type.Date(),

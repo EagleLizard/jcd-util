@@ -2,6 +2,7 @@
 import { DbClient } from '../../lib/postgres-client';
 import { JcdGalleryDto } from '../jcd-dto/jcd-gallery-dto';
 import { GalleryDef } from './jcd-v4-galleries';
+import { JcdProjectDef } from './jcd-v4-projects';
 
 export const JcdGallery = {
   get: getGalleryByKey,
@@ -27,7 +28,7 @@ async function getGalleryByKey(client: DbClient, galleryKey: string) {
 }
 
 async function insertGallery(client: DbClient, opts: {
-  gallery_key: GalleryDef['gallery_key'];
+  gallery_key: GalleryDef['gallery_key'] | JcdProjectDef['project_key'];
 }) {
   let colNames = [
     'gallery_key',

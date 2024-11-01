@@ -30,13 +30,10 @@ import { Description, JcdProjectDesc } from './jcd-desc';
 import { JcdProject } from './jcd-project';
 import { JcdProjectVenueDtoType } from '../jcd-dto/jcd-project-venue-dto';
 import { JcdProjectVenue, Venue } from './jcd-project-venue';
-import { JcdProjectImageDtoType, JcdProjectImageJoinDtoType } from '../jcd-dto/jcd-project-image-dto';
 import { JcdImage } from './jcd-image';
-import { JcdProjectImage } from './jcd-project-image';
 import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
 import { JcdProjectSort } from './jcd-project-sort';
 import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
-import { JcdProjectImageSort } from './jcd-project-image-sort';
 import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
 import { JcdCreditSort } from './jcd-credit-sort';
 import { JcdProdCreditSort } from './jcd-prod-credit-sort';
@@ -101,24 +98,28 @@ export async function jcdDbV4Main() {
 async function upsertGalleryDef(client: DbClient, opts: {
   galleryDef: GalleryDef;
 }) {
-  let jcdGalleryDto = upsertGallery(client, opts);
+  let jcdGalleryDto = upsertGallery(client, {
+    galleryKey: opts.galleryDef.gallery_key,
+    imageDefs: opts.galleryDef.images,
+  });
   return jcdGalleryDto;
 }
 
 async function upsertGallery(client: DbClient, opts: {
-  galleryDef: GalleryDef;
-}): Promise<[GalleryDef, JcdGalleryDtoType, [ JcdImageDef, JcdImageDtoType, JcdGalleryImageDtoType ][]]> {
-  let jcdGalleryDto = await JcdGallery.get(client, opts.galleryDef.gallery_key);
+  galleryKey: GalleryDef['gallery_key'] | JcdProjectDef['project_key'];
+  imageDefs: JcdImageDef[];
+}): Promise<[(GalleryDef['gallery_key'] | JcdProjectDef['project_key']), JcdGalleryDtoType, [ JcdImageDef, JcdImageDtoType, JcdGalleryImageDtoType ][]]> {
+  let jcdGalleryDto = await JcdGallery.get(client, opts.galleryKey);
   if(jcdGalleryDto === undefined) {
     jcdGalleryDto = await JcdGallery.insert(client, {
-      gallery_key: opts.galleryDef.gallery_key,
+      gallery_key: opts.galleryKey,
     });
   }
   let jcdGalleryImageDtoTuples = await upsertJcdGalleryImages(client, {
     jcd_gallery_id: jcdGalleryDto.jcd_gallery_id,
-    imageDefs: opts.galleryDef.images,
+    imageDefs: opts.imageDefs,
   });
-  return [ opts.galleryDef, jcdGalleryDto, jcdGalleryImageDtoTuples ];
+  return [ opts.galleryKey, jcdGalleryDto, jcdGalleryImageDtoTuples ];
 }
 
 async function upsertJcdGalleryImages(client: DbClient, opts: {
@@ -226,15 +227,10 @@ async function upsertProjectDef(opts: {
     });
   });
 
-  let jcdImageDtoTuples = await upsertJcdImages(PgClient, {
-    jcd_project_id: jcdProjectDto.jcd_project_id,
-    jcdImageDefs: jcdProjectDef.images,
-  });
   await PgClient.transact(async (client) => {
-    await insertJcdProjectImageSorts(client, {
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-      jcdImageDefs: jcdProjectDef.images,
-      jcdImageDtoTuples,
+    await upsertGallery(client, {
+      galleryKey: jcdProjectDef.project_key,
+      imageDefs: jcdProjectDef.images,
     });
   });
 }
@@ -287,55 +283,6 @@ async function insertProjectSorts(client: DbClient, opts: {
       console.log(insertOutStr);
       await JcdProjectSort.insert(client, {
         jcd_project_id: jcdProjectDto.jcd_project_id,
-        sort_order: insertSortOrder,
-      });
-    }
-  }
-}
-
-async function insertJcdProjectImageSorts(client: DbClient, opts: {
-  jcd_project_id: number;
-  jcdImageDefs: JcdImageDef[];
-  jcdImageDtoTuples: [JcdImageDtoType, JcdProjectImageDtoType][],
-}) {
-  for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
-    let currImageDef = opts.jcdImageDefs[i];
-    let foundImageDtoTuple = opts.jcdImageDtoTuples.find(dtoTuple => {
-      return dtoTuple[0].path === currImageDef[1];
-    });
-    if(foundImageDtoTuple === undefined) {
-      throw new Error(`attempted to insert JcdProjectImageSort for jcd_image not in db: ${currImageDef[1]}`);
-    }
-    let jcdProjectImageDto = foundImageDtoTuple[1];
-    let jcdProjectImageDtos = await JcdProjectImage.getAllByProject(client, {
-      jcd_project_id: opts.jcd_project_id,
-    });
-    let foundImageDtoIdx = jcdProjectImageDtos.findIndex(projImageDto => {
-      return currImageDef[1] === projImageDto.path;
-    });
-    if(foundImageDtoIdx === -1) {
-      let prevSortDef: JcdImageDef | undefined;
-      let insertAfterSortDto: JcdProjectImageJoinDtoType | undefined;
-      if((prevSortDef = opts.jcdImageDefs[i - 1]) !== undefined) {
-        let insertAfterDtoIdx = jcdProjectImageDtos.findIndex(projImage => {
-          return prevSortDef?.[1] === projImage.path;
-        });
-        insertAfterSortDto = jcdProjectImageDtos[insertAfterDtoIdx];
-      }
-      let insertSortOrder: number;
-      if(insertAfterSortDto === undefined) {
-        insertSortOrder = 1;
-      } else {
-        insertSortOrder = insertAfterSortDto.sort_order + 1;
-      }
-      let insertOutStr = `inserting ${currImageDef[1]} at ${insertSortOrder}`;
-      if(insertAfterSortDto !== undefined) {
-        insertOutStr += ` after ${insertAfterSortDto.path}`;
-      }
-      console.log(insertOutStr);
-      await JcdProjectImageSort.insert(client, {
-        jcd_project_id: opts.jcd_project_id,
-        jcd_project_image_id: jcdProjectImageDto.jcd_project_image_id,
         sort_order: insertSortOrder,
       });
     }
@@ -444,53 +391,7 @@ async function insertJcdProdCreditSorts(client: DbClient, opts: {
   }
 }
 
-async function upsertJcdImages(client: DbClient, opts: {
-  jcd_project_id: number;
-  jcdImageDefs: JcdImageDef[];
-}): Promise<[JcdImageDtoType, JcdProjectImageDtoType][]> {
-  let jcdProjectImageDtoTuples: [JcdImageDtoType, JcdProjectImageDtoType][] = [];
-
-  for(let i = 0; i < opts.jcdImageDefs.length; ++i) {
-    let currImageDef = opts.jcdImageDefs[i];
-    let jcdProjectImageDtoTuple = await upsertJcdImage(client, {
-      jcd_project_id: opts.jcd_project_id,
-      imageDef: currImageDef,
-    });
-    jcdProjectImageDtoTuples.push(jcdProjectImageDtoTuple);
-  }
-
-  return jcdProjectImageDtoTuples;
-}
-
-async function upsertJcdImage(client: DbClient, opts: {
-  jcd_project_id: number;
-  imageDef: JcdImageDef;
-}): Promise<[JcdImageDtoType, JcdProjectImageDtoType]> {
-  let jcdImageDto = await JcdImage.getByPath(client, {
-    path: opts.imageDef[1],
-  });
-  if(jcdImageDto === undefined) {
-    jcdImageDto = await JcdImage.insert(client, {
-      path: opts.imageDef[1],
-    });
-  }
-  let jcdImageKind = imageDtoKindFromDef(opts.imageDef);
-  let jcdProjectImageDto = await JcdProjectImage.get(client, {
-    jcd_project_id: opts.jcd_project_id,
-    jcd_image_id: jcdImageDto.jcd_image_id,
-    kind: jcdImageKind,
-  });
-  if(jcdProjectImageDto === undefined) {
-    jcdProjectImageDto = await JcdProjectImage.insert(client, {
-      jcd_project_id: opts.jcd_project_id,
-      jcd_image_id: jcdImageDto.jcd_image_id,
-      kind: jcdImageKind,
-    });
-  }
-  return [ jcdImageDto, jcdProjectImageDto ];
-}
-
-function imageDtoKindFromDef(def: JcdImageDef): JcdProjectImageDtoType['kind'] {
+function imageDtoKindFromDef(def: JcdImageDef): JcdGalleryImageDtoType['kind'] {
   switch(def[0]) {
     case 'g':
       return 'gallery';
