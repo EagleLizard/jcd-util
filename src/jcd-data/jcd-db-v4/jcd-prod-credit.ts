@@ -116,7 +116,7 @@ async function shiftJcdProdCreditSorts(client: DbClient, opts: {
   _*/
   queryStr = `
     SELECT * FROM jcd_prod_credit jpc
-      WHERE jpc.jcd_project_id = $1
+    WHERE jpc.jcd_project_id = $1
       AND jpc.sort_order >= $2
     FOR UPDATE
   `;

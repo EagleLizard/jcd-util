@@ -15,7 +15,7 @@ import { JcdPress, Publication } from './jcd-press';
 import { JcdProjectDtoType } from '../jcd-dto/jcd-project-dto';
 import { DescriptionDto } from '../jcd-dto/description-dto';
 import { JcdProjectDescDto } from '../jcd-dto/jcd-project-desc-dto';
-import { JcdCreditDtoType, JcdCreditOrderDtoType } from '../jcd-dto/jcd-credit-dto';
+import { JcdCreditDtoType } from '../jcd-dto/jcd-credit-dto';
 import { PersonDtoType } from '../jcd-dto/person-dto';
 import { OrgDtoType } from '../jcd-dto/org-dto';
 import { JcdCreditContribDtoType } from '../jcd-dto/jcd-credit-contrib-dto';
@@ -35,7 +35,6 @@ import { JcdProjectSortDef, jcdProjectSortDefs } from './jcd-v4-sorts';
 import { JcdProjectSort } from './jcd-project-sort';
 import { JcdProjectSortKeyDtoType } from '../jcd-dto/jcd-project-sort-key-dto';
 import { JcdImageDtoType } from '../jcd-dto/jcd-image-dto';
-import { JcdCreditSort } from './jcd-credit-sort';
 import { GalleryDef, JcdV4Galleries } from './jcd-v4-galleries';
 import { JcdGalleryDtoType } from '../jcd-dto/jcd-gallery-dto';
 import { JcdGallery } from './jcd-gallery';
@@ -189,28 +188,15 @@ async function upsertProjectDef(opts: {
     name: jcdProjectDef.venue,
   });
 
-  let jcdCreditDtoTuples = await upsertJcdCredits(PgClient, {
+  await upsertJcdCredits(PgClient, {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
-  });
-  await PgClient.transact(async (client) => {
-    await insertJcdCreditSorts(client, {
-      jcd_project_id: jcdProjectDto.jcd_project_id,
-      // jcdCreditDefs: jcdProjectDef.credits,
-      jcdCreditDtoTuples,
-    });
   });
 
-  let jcdProdCreditDtoTuples = await upsertJcdProdCredits(PgClient, {
+  await upsertJcdProdCredits(PgClient, {
     jcdProjectDef,
     jcd_project_id: jcdProjectDto.jcd_project_id,
   });
-  // await PgClient.transact(async (client) => {
-  //   await insertJcdProdCreditSorts(client, {
-  //     jcd_project_id: jcdProjectDto.jcd_project_id,
-  //     jcdProdCreditDtoTuples,
-  //   });
-  // });
 
   await PgClient.transact(async (client) => {
     await upsertJcdProducers(client, {
@@ -282,58 +268,6 @@ async function insertProjectSorts(client: DbClient, opts: {
       console.log(insertOutStr);
       await JcdProjectSort.insert(client, {
         jcd_project_id: jcdProjectDto.jcd_project_id,
-        sort_order: insertSortOrder,
-      });
-    }
-  }
-}
-
-async function insertJcdCreditSorts(client: DbClient, opts: {
-  jcd_project_id: number;
-  jcdCreditDtoTuples: [JcdCreditDef, JcdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType][]][];
-}) {
-  for(let i = 0; i < opts.jcdCreditDtoTuples.length; ++i) {
-    let currCreditDtoTuple = opts.jcdCreditDtoTuples[i];
-    let jcdCreditDto = currCreditDtoTuple[1];
-    let sortedJcdCreditDtos = await JcdCredit.getAllByProject(client, {
-      jcd_project_id: opts.jcd_project_id,
-    });
-    // console.log(sortedJcdCreditDtos);
-    let foundSortedJcdCreditIdx = sortedJcdCreditDtos.findIndex(sortedCreditDto => {
-      return jcdCreditDto.jcd_credit_id === sortedCreditDto.jcd_credit_id;
-    });
-    if(foundSortedJcdCreditIdx === -1) {
-      /*
-        If not exist, insert after previous entry's
-          sort_order. If previous entry not in sort order,
-          insert at beginning
-      _*/
-      let prevCreditDto: JcdCreditDtoType | undefined;
-      let insertAfterDto: JcdCreditOrderDtoType | undefined;
-      if((prevCreditDto = opts.jcdCreditDtoTuples[i - 1]?.[1]) !== undefined) {
-        let insertAfterDtoIdx = sortedJcdCreditDtos.findIndex(sortedCreditDto => {
-          return prevCreditDto?.jcd_credit_id === sortedCreditDto.jcd_credit_id;
-        });
-        if(insertAfterDtoIdx !== -1) {
-          insertAfterDto = sortedJcdCreditDtos[insertAfterDtoIdx];
-        }
-      }
-      let insertSortOrder: number;
-      if(insertAfterDto === undefined) {
-        insertSortOrder = 1;
-      } else {
-        insertSortOrder = insertAfterDto.sort_order + 1;
-      }
-      console.log('');
-      console.log(currCreditDtoTuple[0]);
-      let insertOutStr = `inserting at ${insertSortOrder}`;
-      if(insertAfterDto !== undefined) {
-        insertOutStr += ` after: ${JSON.stringify(insertAfterDto)}`;
-      }
-      console.log(insertOutStr);
-      await JcdCreditSort.insert(client, {
-        jcd_project_id: opts.jcd_project_id,
-        jcd_credit_id: jcdCreditDto.jcd_credit_id,
         sort_order: insertSortOrder,
       });
     }
@@ -562,17 +496,25 @@ async function upsertJcdCredits(client: DbClient, opts: {
 }) {
   let jcdCreditDtoTuples: [JcdCreditDef, JcdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType][]][] = [];
   for(let i = 0; i < opts.jcdProjectDef.credits.length; ++i) {
-    let currCredit = opts.jcdProjectDef.credits[i];
+    let prevCreditDtoTuple: [JcdCreditDef, JcdCreditDtoType, [(PersonDtoType | OrgDtoType), JcdCreditContribDtoType][]];
+    let currCreditDef = opts.jcdProjectDef.credits[i];
+    let insertAfterIdx: number;
+    if((prevCreditDtoTuple = jcdCreditDtoTuples[i - 1]) !== undefined) {
+      insertAfterIdx = prevCreditDtoTuple[1].sort_order + 1;
+    } else {
+      insertAfterIdx = 1;
+    }
     let currCreditDto = await upsertJcdCredit(client, {
-      creditDef: currCredit,
+      creditDef: currCreditDef,
       jcd_project_id: opts.jcd_project_id,
+      sort_order: insertAfterIdx,
     });
     let jcdCreditContribDtoTuples = await upsertJcdCreditContribs(client, {
       jcdCreditDto: currCreditDto,
-      creditDef: currCredit,
+      creditDef: currCreditDef,
     });
     jcdCreditDtoTuples.push([
-      currCredit,
+      currCreditDef,
       currCreditDto,
       jcdCreditContribDtoTuples,
     ]);
@@ -630,11 +572,8 @@ async function upsertJcdCreditContrib(client: DbClient, opts: {
 async function upsertJcdCredit(client: DbClient, opts: {
   creditDef: JcdCreditDef,
   jcd_project_id: number,
+  sort_order: number;
 }): Promise<JcdCreditDtoType> {
-  // console.log(opts.creditDef);
-  /*
-    first, upsert the credit_contrib
-   */
   let jcdCreditDto = await JcdCredit.get(client, {
     label: opts.creditDef.label,
     jcd_project_id: opts.jcd_project_id,
@@ -645,6 +584,7 @@ async function upsertJcdCredit(client: DbClient, opts: {
   jcdCreditDto = await JcdCredit.insert(client, {
     label: opts.creditDef.label,
     jcd_project_id: opts.jcd_project_id,
+    sort_order: opts.sort_order,
   });
   return jcdCreditDto;
 }
