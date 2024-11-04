@@ -2,51 +2,94 @@
 import fsp from 'fs/promises';
 import path from 'path';
 import { Dirent } from 'fs';
+import os from 'os';
 
 import sharp from 'sharp';
 
 import { checkDir, mkdirIfNotExist } from '../util/files';
-import { BASE_DIR, OUT_DIR } from '../constants';
+import { OUT_DIR } from '../constants';
+import { Timer } from '../util/timer';
+import { getIntuitiveTimeString } from '../util/format-util';
 
 enum RESIZE_FMT_ENUM {
   LARGE = 'LARGE',
   X_LARGE = 'X_LARGE',
   MEDIUM = 'MEDIUM',
   SMALL = 'SMALL',
+  X_SMALL = 'X_SMALL',
 }
 
-type ResizeFmt = {
+type ResizeFmt = {} & {
   kind: RESIZE_FMT_ENUM;
   prefix: string;
   width: number;
   height: number;
 };
 
+const MAX_RUNNING_RESIZES = Math.max(os.cpus().length - 1, 2);
+
 const RESIZE_FMT_MAP: Record<RESIZE_FMT_ENUM, ResizeFmt> = {
   [RESIZE_FMT_ENUM.X_LARGE]: {
     kind: RESIZE_FMT_ENUM.X_LARGE,
     prefix: 'xl',
-    width: 2048,
-    height: 2160,
+    // width: 2048,
+    // height: 2160,
+
+    width: 2560,
+    height: 2700,
   },
   [RESIZE_FMT_ENUM.LARGE]: {
     kind: RESIZE_FMT_ENUM.LARGE,
     prefix: 'lg',
+    // width: 1400,
+    // height: 1477,
+
+    // width: 1366,
+    // height: 1441,
+
+    // width: 1600,
+    // height: 1688,
+
     width: 1920,
-    height: 1600,
+    height: 2025,
+
+    // width: 1920, /* 0.75 * xl */
+    // height: 2025, /* width * 1.0546875 */
   },
   [RESIZE_FMT_ENUM.MEDIUM]: {
     kind: RESIZE_FMT_ENUM.MEDIUM,
     prefix: 'md',
-    width: 768,
-    height: 640,
+
+    width: 1366,
+    height: 1441,
+
+    // width: 960,
+    // height: 1013,
+
+    // width: 960,
+    // height: 1013,
+
+    // width: 768,
+    // height: 810,
   },
   [RESIZE_FMT_ENUM.SMALL]: {
     kind: RESIZE_FMT_ENUM.SMALL,
     prefix: 'sm',
-    width: 500,
-    height: 400,
+    width: 854,
+    height: 901,
+
+    // width: 666,
+    // height: 702,
   },
+  [RESIZE_FMT_ENUM.X_SMALL]: {
+    kind: RESIZE_FMT_ENUM.X_SMALL,
+    prefix: 'xs',
+    width: 666,
+    height: 702,
+
+    // width: 360,
+    // height: 380,
+  }
 };
 
 const VALID_EXTNAMES = [ '.jpg', '.jpeg', '.png' ];
@@ -56,6 +99,8 @@ export async function imgProcMain(cmdArgs: string[]) {
   let outDirPath: string;
   let fmtKinds: RESIZE_FMT_ENUM[];
   console.log('imgProc');
+  console.log('cmdArgs:');
+  console.log(cmdArgs);
   if(cmdArgs.length < 1) {
     throw new Error('imgProc expected at least one command arg');
   }
@@ -74,7 +119,10 @@ export async function imgProcMain(cmdArgs: string[]) {
     RESIZE_FMT_ENUM.LARGE,
     RESIZE_FMT_ENUM.MEDIUM,
     RESIZE_FMT_ENUM.SMALL,
+    RESIZE_FMT_ENUM.X_SMALL,
   ];
+
+  let timer = Timer.start();
   for(let i = 0; i < fmtKinds.length; ++i) {
     let currFmt = RESIZE_FMT_MAP[fmtKinds[i]];
     await resizeImages(imageFilePaths, {
@@ -83,6 +131,8 @@ export async function imgProcMain(cmdArgs: string[]) {
       outDirPath,
     });
   }
+  let elapsedMs = timer.stop();
+  console.log(`took: ${getIntuitiveTimeString(elapsedMs)}`);
 }
 
 type ResizeImageOpts = {
@@ -93,10 +143,26 @@ type ResizeImageOpts = {
 
 async function resizeImages(imagePaths: string[], opts: ResizeImageOpts) {
   console.log(opts.resizeFmt.kind);
+  console.log(`${opts.resizeFmt.prefix}: ${opts.resizeFmt.width}x${opts.resizeFmt.height}`);
+
+  let running = 0;
+
   for(let i = 0; i < imagePaths.length; ++i) {
-    // console.log(imagePaths[i]);
-    await resizeImage(imagePaths[i], opts);
+    while(running >= MAX_RUNNING_RESIZES) {
+      await sleep(10);
+    }
+    running++;
+    resizeImage(imagePaths[i], opts).then(() => {
+      process.stdout.write('.');
+    }).finally(() => {
+      running--;
+    });
   }
+  while(running > 0) {
+    await sleep(10);
+  }
+  console.log('');
+  process.stdout.write('\n');
 }
 
 async function resizeImage(imagePath: string, opts: ResizeImageOpts) {
@@ -105,9 +171,7 @@ async function resizeImage(imagePath: string, opts: ResizeImageOpts) {
   let relPath = path.relative(imageDir, imagePath);
   let fmtPath = [ resizeFmt.prefix, relPath ].join(path.sep);
   let outPath = [ opts.outDirPath, fmtPath ].join(path.sep);
-  console.log(fmtPath);
-  // console.log(outPath);
-  // console.log(path.dirname(outPath));
+
   mkdirIfNotExist(path.dirname(outPath), {
     recursive: true,
   });
@@ -171,4 +235,12 @@ async function getImageFiles(imgDir: string): Promise<string[]> {
   }
 
   return imageFilePaths;
+}
+
+function sleep(ms = 0) {
+  return new Promise<void>((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, ms);
+  });
 }
