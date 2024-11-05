@@ -174,13 +174,9 @@ async function upsertProjectDef(opts: {
     jcdProjectDto,
   } = opts;
 
-  let descDto = await upsertProjectDesc(PgClient, {
-    text: jcdProjectDef.description.join('\n'),
-    jcd_project_id: jcdProjectDto.jcd_project_id,
-  });
   await upsertJcdProjectDesc(PgClient, {
     jcd_project_id: jcdProjectDto.jcd_project_id,
-    description_id: descDto.description_id,
+    text: jcdProjectDef.description.join('\n'),
   });
 
   await upsertJcdVenue(PgClient, {
@@ -634,20 +630,27 @@ async function upsertOrg(client: DbClient, opts: {
 
 async function upsertJcdProjectDesc(client: DbClient, opts: {
   jcd_project_id: number,
-  description_id: number,
+  text: string;
 }): Promise<JcdProjectDescDto> {
+  let descDto = await upsertDesc(PgClient, {
+    text: opts.text,
+    jcd_project_id: opts.jcd_project_id,
+  });
   let jcdProjDescDto = await JcdProjectDesc.get(client, {
     jcd_project_id: opts.jcd_project_id,
-    description_id: opts.description_id,
+    description_id: descDto.description_id,
   });
   if(jcdProjDescDto !== undefined) {
     return jcdProjDescDto;
   }
-  jcdProjDescDto = await JcdProjectDesc.insert(client, opts);
+  jcdProjDescDto = await JcdProjectDesc.insert(client, {
+    jcd_project_id: opts.jcd_project_id,
+    description_id: descDto.description_id,
+  });
   return jcdProjDescDto;
 }
 
-async function upsertProjectDesc(client: DbClient, opts: {
+async function upsertDesc(client: DbClient, opts: {
   text: string;
   jcd_project_id: number;
 }): Promise<DescriptionDto> {
