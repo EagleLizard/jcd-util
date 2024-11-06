@@ -1,7 +1,7 @@
 
 import { JcdV4ProjectKey } from './jcd-v4-projects';
 
-export type JcdProjectSortDef = [ JcdV4ProjectKey, number ];
+export type JcdProjectSortDef = {} & [ JcdV4ProjectKey, number ];
 
 let jcdProjectSortBase: JcdV4ProjectKey[] = [
   'THE_TALES_OF_HOFFMANN',

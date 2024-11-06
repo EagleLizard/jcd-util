@@ -1,3 +1,4 @@
+import { isPromise } from './validate-primitives';
 
 export class Timer {
 
@@ -32,5 +33,15 @@ export class Timer {
 
   static getDeltaMs(start: bigint, end: bigint): number {
     return Number((end - start) / BigInt(1e3)) / 1e3;
+  }
+
+  static async runAndTime<T>(fn: () => T | Promise<T>): Promise<[T, number]> {
+    let startTime = process.hrtime.bigint();
+    let res = fn();
+    if(isPromise(res)) {
+      res = await res;
+    }
+    let deltaMs = Timer.getDeltaMs(startTime, process.hrtime.bigint());
+    return [ res, deltaMs ];
   }
 }

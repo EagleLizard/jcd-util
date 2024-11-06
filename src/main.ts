@@ -4,6 +4,7 @@ sourceMapSupport.install();
 
 import { imgProcMain } from './img-proc/img-proc';
 import { jcdDbV4Main } from './jcd-data/jcd-db-v4/jcd-db-v4';
+import { jcdV4ApiMain } from './jcd-api/jcd-v4-api';
 
 (async () => {
   try {
@@ -26,6 +27,9 @@ async function main() {
       break;
     case 'db':
       await jcdDbV4Main();
+      break;
+    case 'api':
+      await jcdV4ApiMain(cmdArgs);
       break;
     default:
       throw new Error(`Invalid cmd: ${cmd}`);
