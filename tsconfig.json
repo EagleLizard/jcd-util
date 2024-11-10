@@ -3,6 +3,9 @@
     "target": "ES2022",
     "module": "CommonJS",
     "moduleResolution": "node",
+    "lib": [
+      "ESNext" // for Array.toSorted
+    ],
     "rootDir": "./src",
     "outDir": "./dist",
     "strict": true,

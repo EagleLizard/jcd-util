@@ -43,7 +43,7 @@ export enum JCD_V4_PROJECT_ENUM {
 
 export type JcdV4ProjectKey = keyof typeof JCD_V4_PROJECT_ENUM;
 
-export type JcdProjectDef = {
+export type JcdProjectDef = {} & {
   project_key: JcdV4ProjectKey;
   active: boolean;
   route: string;
