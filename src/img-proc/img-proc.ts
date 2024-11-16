@@ -99,19 +99,28 @@ const RESIZE_FMT_MAP: Record<RESIZE_FMT_ENUM, ResizeFmt> = {
 const VALID_EXTNAMES = [ '.jpg', '.jpeg', '.png' ];
 
 export async function imgProcMain(cmdArgs: string[]) {
+  let imgDirArg: string | undefined;
+  let outDirArg: string | undefined;
+  let imgDir: string;
   let outDirName: string;
   let outDirPath: string;
   let fmtKinds: RESIZE_FMT_ENUM[];
   console.log('imgProc');
   console.log('cmdArgs:');
   console.log(cmdArgs);
-  if(cmdArgs.length < 1) {
-    throw new Error('imgProc expected at least one command arg');
+  /*
+    simple args for now
+  _*/
+  imgDirArg = cmdArgs.at(0);
+  outDirArg = cmdArgs.at(1);
+  if(imgDirArg === undefined) {
+    throw new Error('imgProc expects at least one arg');
   }
-  let imgDir = cmdArgs[0]; // simple args for now
+  imgDir = imgDirArg;
+  outDirName = outDirArg ?? path.basename(imgDir);
   console.log({ dir: imgDir });
+
   let imageFilePaths = await getImageFiles(imgDir);
-  outDirName = path.basename(imgDir);
   outDirPath = [ OUT_DIR, outDirName ].join(path.sep);
   console.log({ outDirPath });
   mkdirIfNotExist(outDirPath, {
