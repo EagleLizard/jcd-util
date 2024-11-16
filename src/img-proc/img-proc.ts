@@ -1,7 +1,7 @@
 
 import fsp from 'fs/promises';
 import path from 'path';
-import { Dirent } from 'fs';
+import fs, { Dirent } from 'fs';
 import os from 'os';
 
 import sharp from 'sharp';
@@ -10,6 +10,8 @@ import { checkDir, mkdirIfNotExist } from '../util/files';
 import { OUT_DIR } from '../constants';
 import { Timer } from '../util/timer';
 import { getIntuitiveTimeString } from '../util/format-util';
+import { sleep } from '../util/sleep';
+import { ImgSz } from './img-sz';
 
 enum RESIZE_FMT_ENUM {
   LARGE = 'LARGE',
@@ -21,12 +23,14 @@ enum RESIZE_FMT_ENUM {
 
 type ResizeFmt = {} & {
   kind: RESIZE_FMT_ENUM;
-  prefix: string;
+  prefix: ImgSz;
   width: number;
   height: number;
 };
 
 const MAX_RUNNING_RESIZES = Math.max(os.cpus().length - 1, 2);
+
+const IMG_FMTS_OUT_FILE_NAME = 'img-fmts.json';
 
 const RESIZE_FMT_MAP: Record<RESIZE_FMT_ENUM, ResizeFmt> = {
   [RESIZE_FMT_ENUM.X_LARGE]: {
@@ -122,15 +126,20 @@ export async function imgProcMain(cmdArgs: string[]) {
     RESIZE_FMT_ENUM.X_SMALL,
   ];
 
+  let imgFmts: ResizeFmt[] = [];
+
   let timer = Timer.start();
   for(let i = 0; i < fmtKinds.length; ++i) {
     let currFmt = RESIZE_FMT_MAP[fmtKinds[i]];
+    imgFmts.push(currFmt);
     await resizeImages(imageFilePaths, {
       resizeFmt: currFmt,
       imageDir: imgDir,
       outDirPath,
     });
   }
+  let imgFmtsOutFilePath = [ outDirPath, IMG_FMTS_OUT_FILE_NAME ].join(path.sep);
+  fs.writeFileSync(imgFmtsOutFilePath, JSON.stringify(imgFmts));
   let elapsedMs = timer.stop();
   console.log(`took: ${getIntuitiveTimeString(elapsedMs)}`);
 }
@@ -171,7 +180,6 @@ async function resizeImage(imagePath: string, opts: ResizeImageOpts) {
   let relPath = path.relative(imageDir, imagePath);
   let fmtPath = [ resizeFmt.prefix, relPath ].join(path.sep);
   let outPath = [ opts.outDirPath, fmtPath ].join(path.sep);
-
   mkdirIfNotExist(path.dirname(outPath), {
     recursive: true,
   });
@@ -235,12 +243,4 @@ async function getImageFiles(imgDir: string): Promise<string[]> {
   }
 
   return imageFilePaths;
-}
-
-function sleep(ms = 0) {
-  return new Promise<void>((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, ms);
-  });
 }
