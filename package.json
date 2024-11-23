@@ -18,6 +18,7 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.692.0",
     "@sinclair/typebox": "^0.33.16",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",

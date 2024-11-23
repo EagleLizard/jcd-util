@@ -9,6 +9,11 @@ const config = {
   POSTGRES_USER: process.env.POSTGRES_USER,
   POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
   POSTGRES_DB: process.env.POSTGRES_DB,
+
+  EZD_AWS_ACCESS_KEY_ID: process.env.EZD_AWS_ACCESS_KEY_ID,
+  EZD_AWS_SECRET_ACCESS_KEY: process.env.EZD_AWS_SECRET_ACCESS_KEY,
+  EZD_API_AWS_REGION: 'us-west-2',
+  EZD_API_BUCKET_KEY: 'ezd-api-us-west-2-297608881144',
 } as const;
 
 export {

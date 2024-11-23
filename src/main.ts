@@ -5,6 +5,7 @@ sourceMapSupport.install();
 import { imgProcMain } from './img-proc/img-proc';
 import { jcdDbV4Main } from './jcd-data/jcd-db-v4/jcd-db-v4';
 import { jcdV4ApiMain } from './jcd-api/jcd-v4-api';
+import { jcdS3Main } from './jcd-s3/jcd-s3-main';
 
 (async () => {
   try {
@@ -24,6 +25,9 @@ async function main() {
     case 'i':
     case 'img':
       await imgProcMain(cmdArgs);
+      break;
+    case 's3':
+      await jcdS3Main(cmdArgs);
       break;
     case 'db':
       await jcdDbV4Main();

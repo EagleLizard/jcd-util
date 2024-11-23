@@ -12,6 +12,7 @@ import { Timer } from '../util/timer';
 import { getIntuitiveTimeString } from '../util/format-util';
 import { sleep } from '../util/sleep';
 import { ImgSz } from './img-sz';
+import { ImgFiles } from './img-files';
 
 enum RESIZE_FMT_ENUM {
   LARGE = 'LARGE',
@@ -120,7 +121,9 @@ export async function imgProcMain(cmdArgs: string[]) {
   outDirName = outDirArg ?? path.basename(imgDir);
   console.log({ dir: imgDir });
 
-  let imageFilePaths = await getImageFiles(imgDir);
+  let imageFilePaths = await ImgFiles.getFiles(imgDir, {
+    validExtNames: VALID_EXTNAMES,
+  });
   outDirPath = [ OUT_DIR, outDirName ].join(path.sep);
   console.log({ outDirPath });
   mkdirIfNotExist(outDirPath, {
@@ -221,35 +224,4 @@ async function resizeImage(imagePath: string, opts: ResizeImageOpts) {
     });
   });
   await sharpPromise;
-}
-
-async function getImageFiles(imgDir: string): Promise<string[]> {
-  let imageFilePaths: string[];
-  let dirEntries: Dirent[];
-  if(!checkDir(imgDir)) {
-    throw new Error(`${imgDir} is not a dir`);
-  }
-
-  imageFilePaths = [];
-
-  dirEntries = await fsp.readdir(imgDir, {
-    withFileTypes: true,
-    recursive: true,
-  });
-
-  for(let i = 0; i < dirEntries.length; ++i) {
-    let currDirEntry = dirEntries[i];
-    let fullPath = [
-      currDirEntry.parentPath,
-      currDirEntry.name
-    ].join(path.sep);
-    if(
-      !currDirEntry.isDirectory()
-      && VALID_EXTNAMES.includes(path.extname(fullPath).toLowerCase())
-    ) {
-      imageFilePaths.push(fullPath);
-    }
-  }
-
-  return imageFilePaths;
 }
