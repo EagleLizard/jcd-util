@@ -14,6 +14,8 @@ const config = {
   EZD_AWS_SECRET_ACCESS_KEY: process.env.EZD_AWS_SECRET_ACCESS_KEY,
   EZD_API_AWS_REGION: 'us-west-2',
   EZD_API_BUCKET_KEY: 'ezd-api-us-west-2-297608881144',
+
+  JCD_IMAGE_V4_GCP_BUCKET: 'jcd-image-v4',
 } as const;
 
 export {

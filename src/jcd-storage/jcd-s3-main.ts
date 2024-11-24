@@ -65,7 +65,7 @@ async function upsertFile(filePath: string, objectKey: string) {
   if(headObjResp === undefined) {
     let fileStats = fs.statSync(filePath);
     let rs = fs.createReadStream(filePath);
-    let contentType = getMimeType(filePath);
+    let contentType = ImgFiles.getMimeType(filePath);
     let sha1 = await Hasher.hashFile(filePath, { alg: 'sha1' });
 
     let putObjCmd = new PutObjectCommand({
@@ -84,17 +84,4 @@ async function upsertFile(filePath: string, objectKey: string) {
     console.log(putObjResp);
   }
   console.log({ headObjResp });
-}
-
-export function getMimeType(filePath: string) {
-  let extName = path.extname(filePath).toLowerCase();
-  switch(extName) {
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.png':
-      return 'image/png';
-    case '.json':
-      return 'application/json';
-  }
 }

@@ -6,6 +6,7 @@ import { imgProcMain } from './img-proc/img-proc';
 import { jcdDbV4Main } from './jcd-data/jcd-db-v4/jcd-db-v4';
 import { jcdV4ApiMain } from './jcd-api/jcd-v4-api';
 import { jcdS3Main } from './jcd-storage/jcd-s3-main';
+import { jcdGcpStorageMain } from './jcd-storage/jcd-gcp-storage-main';
 
 (async () => {
   try {
@@ -29,6 +30,10 @@ async function main() {
     case 's3':
       await jcdS3Main(cmdArgs);
       break;
+    case 'gcp-storage':
+    case 'gcs':
+      await jcdGcpStorageMain(cmdArgs);
+      break;
     case 'db':
       await jcdDbV4Main();
       break;
@@ -40,3 +45,6 @@ async function main() {
   }
   // console.log(process.argv[2]);
 }
+/*
+2983144	./out/jcd-img-v4
+_*/

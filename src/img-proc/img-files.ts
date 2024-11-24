@@ -9,6 +9,7 @@ const VALID_IMAGE_EXTNAMES = [ '.jpg', '.jpeg', '.png' ];
 
 export const ImgFiles = {
   getFiles,
+  getMimeType,
   VALID_IMAGE_EXTNAMES,
 } as const;
 
@@ -45,4 +46,17 @@ async function getFiles(imgDir: string, opts: GetImageFilesOpts): Promise<string
   }
 
   return imageFilePaths;
+}
+
+function getMimeType(filePath: string) {
+  let extName = path.extname(filePath).toLowerCase();
+  switch(extName) {
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.png':
+      return 'image/png';
+    case '.json':
+      return 'application/json';
+  }
 }
