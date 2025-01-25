@@ -13,6 +13,7 @@ import { config } from '../config';
 import { Hasher } from '../util/hasher';
 import { MetadataResponse } from '@google-cloud/storage/build/cjs/src/nodejs-common';
 import { isObject } from '../util/validate-primitives';
+import { DatetimeUtil } from '../util/datetime-util';
 
 const VALID_GCP_STORAGE_EXTNAMES = [
   ...ImgFiles.VALID_IMAGE_EXTNAMES,
@@ -21,7 +22,10 @@ const VALID_GCP_STORAGE_EXTNAMES = [
 
 export async function jcdGcpStorageMain(cmdArgs: string[]) {
   let srcDirPath: string;
+  console.log('='.repeat(70));
   console.log('jcd gcp storage');
+  console.log(`start:\n${DatetimeUtil.getDatetimeStr(new Date())}`);
+  // return;
   let dirArg = cmdArgs.at(0);
   if(dirArg === undefined) {
     throw new Error('gcp storage command expects at least one arg');
@@ -45,6 +49,7 @@ export async function jcdGcpStorageMain(cmdArgs: string[]) {
     ].join(path.sep);
     await upsertFile(currFilePath, currBucketKey);
   }
+  console.log(`end:\n${DatetimeUtil.getDatetimeStr(new Date())}`);
 }
 
 async function upsertFile(filePath: string, objectKey: string) {

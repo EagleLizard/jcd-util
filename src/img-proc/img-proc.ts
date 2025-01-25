@@ -1,12 +1,11 @@
 
-import fsp from 'fs/promises';
 import path from 'path';
-import fs, { Dirent } from 'fs';
+import fs from 'fs';
 import os from 'os';
 
 import sharp from 'sharp';
 
-import { checkDir, mkdirIfNotExist } from '../util/files';
+import { mkdirIfNotExist } from '../util/files';
 import { OUT_DIR } from '../constants';
 import { Timer } from '../util/timer';
 import { getIntuitiveTimeString } from '../util/format-util';
@@ -15,8 +14,9 @@ import { ImgSz } from './img-sz';
 import { ImgFiles } from './img-files';
 
 enum RESIZE_FMT_ENUM {
-  LARGE = 'LARGE',
+  XX_LARGE = 'XX_LARGE',
   X_LARGE = 'X_LARGE',
+  LARGE = 'LARGE',
   MEDIUM = 'MEDIUM',
   SMALL = 'SMALL',
   X_SMALL = 'X_SMALL',
@@ -26,7 +26,7 @@ type ResizeFmt = {} & {
   kind: RESIZE_FMT_ENUM;
   prefix: ImgSz;
   width: number;
-  height: number;
+  height?: number;
 };
 
 const MAX_RUNNING_RESIZES = Math.max(os.cpus().length - 1, 2);
@@ -34,29 +34,30 @@ const MAX_RUNNING_RESIZES = Math.max(os.cpus().length - 1, 2);
 const IMG_FMTS_OUT_FILE_NAME = 'img-fmts.json';
 
 const RESIZE_FMT_MAP: Record<RESIZE_FMT_ENUM, ResizeFmt> = {
+  [RESIZE_FMT_ENUM.XX_LARGE]: {
+    kind: RESIZE_FMT_ENUM.XX_LARGE,
+    prefix: 'xxl',
+    width: 2560,
+  },
   [RESIZE_FMT_ENUM.X_LARGE]: {
     kind: RESIZE_FMT_ENUM.X_LARGE,
     prefix: 'xl',
     // width: 2048,
     // height: 2160,
 
-    width: 2560,
-    height: 2700,
+    // width: 2560,
+    // height: 2700,
+
+    width: 2100,
   },
   [RESIZE_FMT_ENUM.LARGE]: {
     kind: RESIZE_FMT_ENUM.LARGE,
     prefix: 'lg',
-    // width: 1400,
-    // height: 1477,
 
-    // width: 1366,
-    // height: 1441,
+    width: 1600,
 
-    // width: 1600,
-    // height: 1688,
-
-    width: 1920,
-    height: 2025,
+    // width: 1920,
+    // height: 2025,
 
     // width: 1920, /* 0.75 * xl */
     // height: 2025, /* width * 1.0546875 */
@@ -65,23 +66,18 @@ const RESIZE_FMT_MAP: Record<RESIZE_FMT_ENUM, ResizeFmt> = {
     kind: RESIZE_FMT_ENUM.MEDIUM,
     prefix: 'md',
 
-    width: 1366,
-    height: 1441,
+    width: 1200,
 
-    // width: 960,
-    // height: 1013,
-
-    // width: 960,
-    // height: 1013,
-
-    // width: 768,
-    // height: 810,
+    // width: 1366,
+    // height: 1441,
   },
   [RESIZE_FMT_ENUM.SMALL]: {
     kind: RESIZE_FMT_ENUM.SMALL,
     prefix: 'sm',
-    width: 854,
-    height: 901,
+    width: 800,
+
+    // width: 854,
+    // height: 901,
 
     // width: 666,
     // height: 702,
@@ -89,8 +85,10 @@ const RESIZE_FMT_MAP: Record<RESIZE_FMT_ENUM, ResizeFmt> = {
   [RESIZE_FMT_ENUM.X_SMALL]: {
     kind: RESIZE_FMT_ENUM.X_SMALL,
     prefix: 'xs',
-    width: 666,
-    height: 702,
+    width: 500,
+
+    // width: 666,
+    // height: 702,
 
     // width: 360,
     // height: 380,
@@ -131,6 +129,7 @@ export async function imgProcMain(cmdArgs: string[]) {
   });
 
   fmtKinds = [
+    RESIZE_FMT_ENUM.XX_LARGE,
     RESIZE_FMT_ENUM.X_LARGE,
     RESIZE_FMT_ENUM.LARGE,
     RESIZE_FMT_ENUM.MEDIUM,
@@ -203,9 +202,20 @@ async function resizeImage(imagePath: string, opts: ResizeImageOpts) {
     || (metadata.format === 'jpeg')
   ) {
     sharpTransformer = sharpTransformer.jpeg({
-      quality: 100,
+      trellisQuantisation: true,
+      overshootDeringing: true,
+      optimizeScans: true,
+      quantizationTable: 3,
+      // mozjpeg: true,
+      quality: 90,
+    });
+  } else if(metadata.format === 'png') {
+    sharpTransformer = sharpTransformer.png({
+      effort: 10,
+      compressionLevel: 9,
     });
   }
+  let resizeHeight = resizeFmt.height ?? Math.round(resizeFmt.width * 1.0546875);
   // return;
   sharpTransformer = sharpTransformer
     .rotate()
@@ -213,7 +223,7 @@ async function resizeImage(imagePath: string, opts: ResizeImageOpts) {
       withoutEnlargement: true,
       fit: sharp.fit.inside,
       width: resizeFmt.width,
-      height: resizeFmt.height,
+      height: resizeHeight,
     });
   let sharpPromise = new Promise<void>((resolve, reject) => {
     sharpTransformer.toFile(outPath, (err) => {

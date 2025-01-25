@@ -8,10 +8,12 @@ test-reports
 stats.html
 data
 .env
-package-lock.json
+# package-lock.json
 data
 build
 logs
 times.txt
 out/
 gcp-private-key.json
+
+img-out.txt

@@ -1,5 +1,5 @@
 
-import { createHash, Hash, HashOptions } from 'crypto';
+import { createHash, Hash } from 'crypto';
 import { createReadStream, ReadStream } from 'fs';
 
 const DEFAULT_ALG = 'sha1';
